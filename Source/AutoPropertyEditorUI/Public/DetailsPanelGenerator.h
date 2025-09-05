@@ -48,7 +48,7 @@ protected:
     TObjectPtr<UListView> SubFilterListView;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UButton> BT_Expand;
+    TObjectPtr<UButton> BT_Filter;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UButton> BT_ResetEvery;
@@ -71,16 +71,13 @@ protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UButton> BT_Clear;
 
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UWidget> CategoryListContainer;
+
     virtual void NativePreConstruct() override;
     virtual void NativeOnInitialized() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-
-    UFUNCTION(BlueprintCallable, Category = "Details Panel | Interaction")
-    void CancelHideMenuTimer();
-
-    UFUNCTION(BlueprintCallable, Category = "Details Panel | Interaction")
-    void HideSubFilterMenu();
 
 private:
     UPROPERTY() TObjectPtr<UObject> WatchedObject;
@@ -112,10 +109,11 @@ private:
     void OnCategoryEntryGenerated(UUserWidget& Widget);
     void OnCheckBoxEntryGenerated(UUserWidget& Widget);
 
-    void ResetSearchResult();
-
-    // --- 事件处理 ---
-    // 这个函数将绑定到每个FilterNodeData的委托上
+    /**
+    * ********************************************************************************
+    * ** 过滤器
+    * ********************************************************************************
+    */
     UFUNCTION()
     void OnFilterChanged(UFilterNodeData* NodeData, bool bNewState);
 
@@ -123,28 +121,52 @@ private:
     void ShowSubFilterMenu(UFilterNodeData* CategoryData, UUserWidget* HoveredEntry);
 
     UFUNCTION()
+    void CancelHideMenuTimer();
+
+    UFUNCTION()
+    void HideSubFilterMenu();
+
+    UFUNCTION()
     void ExecuteHideMenu();
 
+    /**
+    * ********************************************************************************
+    * ** 类别
+    * ********************************************************************************
+    */
     UFUNCTION()
     void HandleCategoryToggled(UFilterNodeData* CategoryData, bool bIsChecked);
 
     UFUNCTION()
-    void ExpandOrCollapaseCategory();
+    void ToggleShowCategory();
 
-    UFUNCTION()
-    void HandleSingleValueUpdated(UPropertyEntryData* UpdatedPropertyData);
+    void ShowCategoryMenu();
+    void HideCategoryMenu();
 
-    UFUNCTION()
-    void ResetPropertyToDefault(UFilterNodeData* NodeDataToReset);
-
-    UFUNCTION()
-    void OnSearchTextChanged(const FText& Text);
-
+    /**
+    * ********************************************************************************
+    * ** 搜索
+    * ********************************************************************************
+    */
     UFUNCTION()
     void OnSearchResultClicked(UFilterNodeData* ClickedNode);
 
     UFUNCTION()
     void OnClearSearchClicked();
+
+    UFUNCTION()
+    void OnSearchTextChanged(const FText& Text);
+
+    UFUNCTION()
+    void ResetSearchResult();
+
+    //...
+    UFUNCTION()
+    void HandleSingleValueUpdated(UPropertyEntryData* UpdatedPropertyData);
+
+    //恢复默认值
+    UFUNCTION()
+    void ResetPropertyToDefault(UFilterNodeData* NodeDataToReset);
 
     // 用于处理悬浮延迟的计时器句柄
     FTimerHandle HideMenuTimer;

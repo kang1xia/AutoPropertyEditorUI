@@ -43,7 +43,7 @@ void UDetailsPanelGenerator::NativeOnInitialized()
         BT_Clear->OnClicked.AddDynamic(this, &UDetailsPanelGenerator::OnClearSearchClicked);
     }
 
-    BT_Expand->OnClicked.AddDynamic(this, &ThisClass::ExpandOrCollapaseCategory);
+    BT_Filter->OnClicked.AddDynamic(this, &ThisClass::ToggleShowCategory);
     BT_ResetEvery->OnClicked.AddDynamic(this, &ThisClass::ResetAllToDefaults);
 }
 
@@ -82,7 +82,7 @@ FReply UDetailsPanelGenerator::NativeOnMouseButtonDown(const FGeometry& InGeomet
             }
 
             // 关闭面板
-            ExpandOrCollapaseCategory();
+            ToggleShowCategory();
         }
         else
         {
@@ -236,18 +236,41 @@ void UDetailsPanelGenerator::RefreshSingleCategoryEntry(UCategoryEntry* Entry)
     }
 }
 
-void UDetailsPanelGenerator::ExpandOrCollapaseCategory()
+void UDetailsPanelGenerator::ToggleShowCategory()
 {
     bIsFilterPanelOpen = !bIsFilterPanelOpen;
-    if (CategoryListView->GetVisibility() == ESlateVisibility::Collapsed)
+    bIsFilterPanelOpen ? ShowCategoryMenu() : HideCategoryMenu();
+}
+
+void UDetailsPanelGenerator::ShowCategoryMenu()
+{
+    CategoryListContainer->SetVisibility(ESlateVisibility::Visible);
+
+    const FGeometry& ButtonGeometry = BT_Filter->GetCachedGeometry();
+    const FGeometry& MyGeometry = GetCachedGeometry();
+    if (!ButtonGeometry.GetLocalSize().IsNearlyZero())
     {
-        CategoryListView->SetVisibility(ESlateVisibility::Visible);
+        if (UCanvasPanelSlot* CategoryListSlot = Cast<UCanvasPanelSlot>(CategoryListContainer->Slot))
+        {
+            CategoryListSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+            CategoryListSlot->SetAlignment(FVector2D(1.0f, 0.0f));
+
+            const FVector2D ButtonAbsolutePosition = ButtonGeometry.GetAbsolutePosition();
+            const FVector2D ButtonSize = ButtonGeometry.GetLocalSize();
+
+            const FVector2D MenuDesiredSize = CategoryListContainer->GetDesiredSize();
+            const FVector2D TargetAbsolutePosition = ButtonAbsolutePosition + ButtonSize;
+
+            const FVector2D TargetLocalPosition = MyGeometry.AbsoluteToLocal(TargetAbsolutePosition);
+            CategoryListSlot->SetPosition(TargetLocalPosition);
+        }
     }
-    else
-    {
-        CategoryListView->SetVisibility(ESlateVisibility::Collapsed);
-        ExecuteHideMenu();
-    }
+}
+
+void UDetailsPanelGenerator::HideCategoryMenu()
+{
+    CategoryListContainer->SetVisibility(ESlateVisibility::Collapsed);
+    ExecuteHideMenu();
 }
 
 void UDetailsPanelGenerator::HandleSingleValueUpdated(UPropertyEntryData* UpdatedPropertyData)
@@ -257,22 +280,11 @@ void UDetailsPanelGenerator::HandleSingleValueUpdated(UPropertyEntryData* Update
         return;
     }
 
-    // --- 这里是您设计的核心逻辑 ---
-
     // 我们从传入的数据对象中获取完成任务所需的所有信息：
     FNumericProperty* TargetProperty = UpdatedPropertyData->TargetProperty;
     FName PropertyName = TargetProperty->GetFName();
     UStruct* OwnerStruct = TargetProperty->GetOwnerStruct(); // 获取所属的结构体类型定义
     float NewValue = UpdatedPropertyData->CurrentValue;
-
-    // 我们已经通过 UpdatedPropertyData->UpdateSourceData() 将值写入了内存。
-    // 所以，底层 WatchedObject 中的 CameraSettings 已经是最新值了。
-
-    // 我们的任务是，按照您的设计，发出一个高级的、抽象的通知。
-    //UE_LOG(LogTemp, Log, TEXT("内部属性 '%s' (属于 %s) 已被更新为 %f。正在通知外部监听者..."),
-    //    *PropertyName.ToString(),
-    //    *OwnerStruct->GetName(),
-    //    NewValue);
 
     // 广播那个对外的、高级的委托，告诉监听者“根属性”已被修改。
     OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
