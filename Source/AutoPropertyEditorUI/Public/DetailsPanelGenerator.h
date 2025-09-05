@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "MenuInputProcessor.h"
 #include "DetailsPanelGenerator.generated.h"
 
 class UListView;
@@ -20,6 +21,8 @@ UCLASS()
 class AUTOPROPERTYEDITORUI_API UDetailsPanelGenerator : public UUserWidget
 {
     GENERATED_BODY()
+
+    friend class FMenuInputProcessor;
 
 public:
     UPROPERTY(BlueprintAssignable, Category = "Details Panel | Events")
@@ -76,6 +79,7 @@ protected:
 
     virtual void NativePreConstruct() override;
     virtual void NativeOnInitialized() override;
+    virtual void BeginDestroy() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
@@ -167,6 +171,9 @@ private:
     //恢复默认值
     UFUNCTION()
     void ResetPropertyToDefault(UFilterNodeData* NodeDataToReset);
+
+    UFUNCTION()
+    bool HandleGlobalMouseDown(const FPointerEvent& MouseEvent);
 
     // 用于处理悬浮延迟的计时器句柄
     FTimerHandle HideMenuTimer;

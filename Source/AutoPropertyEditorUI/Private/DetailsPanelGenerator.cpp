@@ -14,6 +14,9 @@
 #include "Components/DynamicEntryBox.h"
 #include "Components/SizeBox.h"
 #include "Components/WidgetSwitcher.h"
+#include "Kismet/GameplayStatics.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/IInputProcessor.h"
 
 void UDetailsPanelGenerator::NativePreConstruct()
 {
@@ -45,6 +48,11 @@ void UDetailsPanelGenerator::NativeOnInitialized()
 
     BT_Filter->OnClicked.AddDynamic(this, &ThisClass::ToggleShowCategory);
     BT_ResetEvery->OnClicked.AddDynamic(this, &ThisClass::ResetAllToDefaults);
+}
+
+void UDetailsPanelGenerator::BeginDestroy()
+{
+    Super::BeginDestroy();
 }
 
 void UDetailsPanelGenerator::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -342,6 +350,11 @@ void UDetailsPanelGenerator::ResetPropertyToDefault(UFilterNodeData* NodeDataToR
             }
         }
     }
+}
+
+bool UDetailsPanelGenerator::HandleGlobalMouseDown(const FPointerEvent& MouseEvent)
+{
+    return false;
 }
 
 void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)

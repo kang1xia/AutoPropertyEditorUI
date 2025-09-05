@@ -19,6 +19,14 @@
 			"Name": "AutoPropertyEditorUI",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "AutoPropertyEditorUIEditor",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "Default",
+			"TargetAllowList": [
+				"Editor"
+			]
 		}
 	]
 }
