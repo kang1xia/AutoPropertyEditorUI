@@ -7,7 +7,7 @@ void UFilterNodeData::UpdateSourceDataAndBroadcast(bool bNewValue)
         return;
     }
 
-    if (TargetProperty && ParentStructData)
+    if (TargetProperty && ParentStructData && bHasOverrideSwitch)
     {
         // 更新反射系统中的真实数据
         void* ValuePtr = TargetProperty->ContainerPtrToValuePtr<void>(ParentStructData);
