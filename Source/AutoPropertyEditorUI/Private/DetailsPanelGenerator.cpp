@@ -18,6 +18,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "PropertyUIData.h"
+#include "Kismet/KismetStringLibrary.h"
 
 void UDetailsPanelGenerator::NativePreConstruct()
 {
@@ -63,7 +64,7 @@ void UDetailsPanelGenerator::NativeTick(const FGeometry& MyGeometry, float InDel
     CachedGeometry = MyGeometry;
 }
 
-void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPropertyName, UDataTable* SourceData, int32 InMaxRecursionDepth)
+void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPropertyName, UDataTable* SourceData)
 {
     if (!TargetObject || !MainListView || !CategoryListView)
     {
@@ -72,8 +73,17 @@ void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPr
 
     WatchedObject = TargetObject;
     RootPropertyName = StructPropertyName;
-    MaxRecursionDepth = InMaxRecursionDepth > 0 ? InMaxRecursionDepth : 1;
     UIDataTable = SourceData;
+
+    TArray<FString> NameArray = UKismetStringLibrary::ParseIntoArray(UIDataTable->GetName(), TEXT("_"));
+    if (NameArray.Num() == 4)
+    {
+        MaxRecursionDepth = FCString::Atoi(*NameArray[2]);
+    }
+    else
+    {
+        MaxRecursionDepth = 0;
+    }
 
     FStructProperty* RootStructProperty = FindFProperty<FStructProperty>(WatchedObject->GetClass(), RootPropertyName);
     WatchedRootProperty = RootStructProperty;
@@ -359,8 +369,6 @@ void UDetailsPanelGenerator::OnCheckBoxEntryGenerated(UUserWidget& Widget)
         // 再绑定
         Entry->OnHovered.AddDynamic(this, &UDetailsPanelGenerator::CancelHideMenuTimer);
         Entry->OnUnhovered.AddDynamic(this, &UDetailsPanelGenerator::HideSubFilterMenu);
-
-        VisibleCheckBoxEntries.Add(Entry);
     }
 }
 
@@ -382,6 +390,19 @@ void UDetailsPanelGenerator::RefreshEveryCategoryState()
     {
         if (UCategoryEntry* Entry = Cast<UCategoryEntry>(ChildEntry))
         {
+            Entry->RefreshState(Entry->GetListItem());
+        }
+    }
+}
+
+void UDetailsPanelGenerator::RefreshSubFilterList()
+{
+    VisibleCheckBoxEntries.Empty();
+    for (auto ChildWidget : SubFilterListView->GetDisplayedEntryWidgets())
+    {
+        if (UCheckBoxEntry* Entry = Cast<UCheckBoxEntry>(ChildWidget))
+        {
+            VisibleCheckBoxEntries.Add(Entry);
             Entry->RefreshState(Entry->GetListItem());
         }
     }
@@ -573,6 +594,7 @@ void UDetailsPanelGenerator::HandleCategoryToggled(UFilterNodeData* CategoryData
         }
     }
 
+    RefreshSubFilterList();
     for (UCheckBoxEntry* VisibleEntry : VisibleCheckBoxEntries)
     {
         if (VisibleEntry)
@@ -592,7 +614,7 @@ void UDetailsPanelGenerator::HideSubFilterMenu()
 {
     // 我们不立即隐藏，而是设置一个短暂的延迟
     // 这允许用户的鼠标可以从主按钮移动到悬浮菜单上，而不会导致菜单消失
-    const float HideDelay = 1.0f;
+    const float HideDelay = 0.5f;
     GetWorld()->GetTimerManager().SetTimer(HideMenuTimer, this, &UDetailsPanelGenerator::ExecuteHideMenu, HideDelay, false);
 }
 
@@ -605,8 +627,6 @@ void UDetailsPanelGenerator::ExecuteHideMenu()
 {
     // 实际执行隐藏的函数
     SubFilterPopup->SetVisibility(ESlateVisibility::Collapsed);
-
-    VisibleCheckBoxEntries.Empty();
 
     if (ActiveCategoryEntry.IsValid())
     {
@@ -625,8 +645,8 @@ void UDetailsPanelGenerator::OnFilterChanged(UFilterNodeData* NodeData, bool bNe
     // 当任何一个筛选器的状态改变时，我们只需要刷新ListView即可
     RefreshListView();
 
-    // 需要同步更新筛选类型的状态,同时打开了搜索框和种类框
-    if (bIsFilterPanelOpen && bIsSearchResultsOpen)
+    // 需要同步更新筛选类型的状态,打开了搜索框和种类框
+    if (bIsFilterPanelOpen || bIsSearchResultsOpen)
     {
         RefreshEveryCategoryState();
     }
@@ -636,7 +656,6 @@ void UDetailsPanelGenerator::OnFilterChanged(UFilterNodeData* NodeData, bool bNe
 
 void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterNodeData* CategoryData, UUserWidget* HoveredEntry)
 {
-    VisibleCheckBoxEntries.Empty();
     CancelHideMenuTimer();
   
     if (!CategoryData || CategoryData->Children.Num() == 0 || !HoveredEntry)
@@ -716,4 +735,6 @@ void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterNodeData* CategoryData, UU
     {
         ActiveCategoryEntry.Get()->SetHighlight(true);
     }
+
+    RefreshSubFilterList();
 }

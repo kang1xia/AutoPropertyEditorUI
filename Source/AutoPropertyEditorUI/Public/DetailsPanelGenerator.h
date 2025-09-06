@@ -30,7 +30,7 @@ public:
     FOnRootPropertyChanged OnRootPropertyChanged;
 
     UFUNCTION(BlueprintCallable, Category = "Details Panel")
-    void GeneratePanel(UObject* TargetObject, FName StructPropertyName, UDataTable* SourceData, int32 InMaxRecursionDepth);
+    void GeneratePanel(UObject* TargetObject, FName StructPropertyName, UDataTable* SourceData);
 
     UFUNCTION(BlueprintCallable, Category = "Details Panel | Actions")
     void ResetAllToDefaults();
@@ -110,6 +110,7 @@ private:
     void RefreshListView();
     void RefreshCategoryEntries();
     void RefreshEveryCategoryState();
+    void RefreshSubFilterList();
     void OnCategoryEntryGenerated(UUserWidget& Widget);
     void OnCheckBoxEntryGenerated(UUserWidget& Widget);
 

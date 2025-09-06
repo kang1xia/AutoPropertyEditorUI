@@ -83,6 +83,11 @@ void UPopulateDataTool::PopulateDataTableRecursive(UStruct* TargetStruct, const 
             {
                 FPropertyUIMetadata NewRow;
                 FString CategoryString = NumericProperty->GetMetaData(TEXT("Category"));
+                if (CategoryString.IsEmpty())
+                {
+                    CategoryString = TEXT("Default");
+                }
+
                 NewRow.Category = CategoryPrefix.IsEmpty() ? CategoryString : FString::Printf(TEXT("%s|%s"), *CategoryPrefix, *CategoryString);
                 NewRow.DisplayName = NumericProperty->GetDisplayNameText();
 
@@ -153,7 +158,7 @@ void UPopulateDataTool::OnPathSelected(const FString& Path)
 
 bool UPopulateDataTool::CreateDataTableAsset()
 {
-    const FString DT_Name = FString::Printf(TEXT("DT_%s_UIData"), *SourceStruct->GetName());
+    const FString DT_Name = FString::Printf(TEXT("DT_%s_%d_MetaData"), *SourceStruct->GetName(), MaxRecursionDepth);
     const FString PackagePath = FString::Printf(TEXT("%s/%s"), *SelectedDirectory, *DT_Name);
 
     DynamicDT = LoadObject<UDataTable>(nullptr, *PackagePath);
