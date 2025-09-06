@@ -213,7 +213,7 @@ void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
     {
         FilterNode->bHasOverrideSwitch = false;
         FilterNode->TargetProperty = nullptr;
-        FilterNode->bIsChecked = true;
+        FilterNode->bIsChecked = false;
     }
 
     FilterNode->OnStateChanged.AddDynamic(this, &UDetailsPanelGenerator::OnFilterChanged);
