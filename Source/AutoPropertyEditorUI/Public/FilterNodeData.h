@@ -27,6 +27,9 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Filter Node")
     bool bIsChecked;
 
+    UPROPERTY(BlueprintReadWrite, Category = "Filter Node")
+    FName FilterPropertyName;
+
     // 委托：当勾选状态改变时广播
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFilterStateChanged, UFilterNodeData*, EmitterNode, bool, bIsChecked);
     UPROPERTY(BlueprintAssignable)
@@ -38,6 +41,7 @@ public:
     // --- C++ Only Data ---
     FBoolProperty* TargetProperty = nullptr;
     void* ParentStructData = nullptr;
+    bool bHasOverrideSwitch = false;
 
     // C++函数，用于更新真实数据
     void UpdateSourceDataAndBroadcast(bool bNewValue);

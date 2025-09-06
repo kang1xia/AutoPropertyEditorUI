@@ -14,6 +14,7 @@ class UDynamicEntryBox;
 class USizeBox;
 class UBorder;
 class UWidgetSwitcher;
+class UDataTable;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRootPropertyChanged, UObject*, TargetObject, FName, RootPropertyName);
 
@@ -29,7 +30,7 @@ public:
     FOnRootPropertyChanged OnRootPropertyChanged;
 
     UFUNCTION(BlueprintCallable, Category = "Details Panel")
-    void GeneratePanel(UObject* TargetObject, FName StructPropertyName);
+    void GeneratePanel(UObject* TargetObject, FName StructPropertyName, UDataTable* SourceData, int32 InMaxRecursionDepth);
 
     UFUNCTION(BlueprintCallable, Category = "Details Panel | Actions")
     void ResetAllToDefaults();
@@ -83,6 +84,11 @@ protected:
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
+    virtual void GenerateDataFromReflection();
+    virtual void ParseStruct_Recursive(UStruct* InStructDef, void* InStructData, int32 RecursionDepth);
+    virtual void CreateNumericNode(FNumericProperty* NumericProperty, void* ParentStructData);
+    virtual void CreateFilterNode(FName ParentName);
+
 private:
     UPROPERTY() TObjectPtr<UObject> WatchedObject;
     FName RootPropertyName;
@@ -92,24 +98,18 @@ private:
 
     // 保存所有可能生成的属性数据
     UPROPERTY() TArray<TObjectPtr<UPropertyEntryData>> AllPropertyData;
-    // 保存筛选器的树状数据
-    UPROPERTY() TArray<TObjectPtr<UFilterNodeData>> FilterTreeData;
 
-    /**
-     * 一个扁平化的列表，包含了所有Category下的所有子项（属性节点）。
-     * 这是我们进行搜索的数据源。
-     */
-    UPROPERTY(Transient)
-    TArray<TObjectPtr<UFilterNodeData>> AllFilterableItems;
-
-    // --- 数据生成 ---
-    void GenerateDataFromReflection();
-    void ParseStruct_Recursive(UStruct* InStructDef, void* InStructData, TMap<FName, UFilterNodeData*>& CategoryMap, int32 RecursionDepth);
+    // 种类筛选器需要的内容
+    TArray<TObjectPtr<UFilterNodeData>> FilterTreeData;
+    // 所有种类下的子项
+    TArray<TObjectPtr<UFilterNodeData>> AllFilterChildItems;
+    // 对应种类下的子项
+    TMap<FName, UFilterNodeData*> CategoryMap;
 
     // --- UI 更新 ---
     void RefreshListView();
     void RefreshCategoryEntries();
-    void RefreshSingleCategoryEntry(class UCategoryEntry* Entry);
+    void RefreshEveryCategoryState();
     void OnCategoryEntryGenerated(UUserWidget& Widget);
     void OnCheckBoxEntryGenerated(UUserWidget& Widget);
 
@@ -172,12 +172,11 @@ private:
     UFUNCTION()
     void ResetPropertyToDefault(UFilterNodeData* NodeDataToReset);
 
-    UFUNCTION()
-    bool HandleGlobalMouseDown(const FPointerEvent& MouseEvent);
-
     // 用于处理悬浮延迟的计时器句柄
     FTimerHandle HideMenuTimer;
     FGeometry CachedGeometry;
     bool bIsFilterPanelOpen = false;
     bool bIsSearchResultsOpen = false;
+    TObjectPtr<UDataTable> UIDataTable;
+    int32 MaxRecursionDepth = 1;
 };

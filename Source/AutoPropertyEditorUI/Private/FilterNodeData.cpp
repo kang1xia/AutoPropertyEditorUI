@@ -12,10 +12,10 @@ void UFilterNodeData::UpdateSourceDataAndBroadcast(bool bNewValue)
         // 更新反射系统中的真实数据
         void* ValuePtr = TargetProperty->ContainerPtrToValuePtr<void>(ParentStructData);
         TargetProperty->SetPropertyValue(ValuePtr, bNewValue);
-
-        // 更新我们自己的数据对象
-        bIsChecked = bNewValue;
     }
+
+    // 更新我们自己的数据对象
+    bIsChecked = bNewValue;
 
     OnStateChanged.Broadcast(this, bIsChecked);
 }

@@ -17,6 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/IInputProcessor.h"
+#include "PropertyUIData.h"
 
 void UDetailsPanelGenerator::NativePreConstruct()
 {
@@ -60,6 +61,194 @@ void UDetailsPanelGenerator::NativeTick(const FGeometry& MyGeometry, float InDel
     Super::NativeTick(MyGeometry, InDeltaTime);
     // 每帧都将最新的几何信息缓存起来
     CachedGeometry = MyGeometry;
+}
+
+void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPropertyName, UDataTable* SourceData, int32 InMaxRecursionDepth)
+{
+    if (!TargetObject || !MainListView || !CategoryListView)
+    {
+        return;
+    }
+
+    WatchedObject = TargetObject;
+    RootPropertyName = StructPropertyName;
+    MaxRecursionDepth = InMaxRecursionDepth > 0 ? InMaxRecursionDepth : 1;
+    UIDataTable = SourceData;
+
+    FStructProperty* RootStructProperty = FindFProperty<FStructProperty>(WatchedObject->GetClass(), RootPropertyName);
+    WatchedRootProperty = RootStructProperty;
+
+    // 1. 从反射生成所有的数据对象
+    GenerateDataFromReflection();
+
+    // 2. 填充TreeView
+    CategoryListView->ClearListItems();
+    CategoryListView->SetListItems(TArray<UObject*>(FilterTreeData));
+
+    // 3. 根据初始筛选条件，刷新ListView
+    RefreshListView();
+}
+
+void UDetailsPanelGenerator::GenerateDataFromReflection()
+{
+    AllPropertyData.Empty();
+    FilterTreeData.Empty();
+    AllFilterChildItems.Empty();
+    CategoryMap.Empty();
+
+    if (!WatchedRootProperty) return;
+
+    UStruct* RootStructDef = WatchedRootProperty->Struct;
+    void* RootStructData = WatchedRootProperty->ContainerPtrToValuePtr<void>(WatchedObject);
+
+    ParseStruct_Recursive(RootStructDef, RootStructData, 0);
+
+    for (UFilterNodeData* CategoryNode : FilterTreeData)
+    {
+        // 安全检查
+        if (CategoryNode && CategoryNode->Children.Num() > 0)
+        {
+            // 将这个分类下的所有子项一次性地追加到扁平化列表中
+            AllFilterChildItems.Append(CategoryNode->Children);
+        }
+    }
+}
+
+void UDetailsPanelGenerator::ParseStruct_Recursive(UStruct* InStructDef, void* InStructData, int32 RecursionDepth)
+{
+    if (!WidgetTree || !InStructDef || !InStructData) return;
+
+    for (TFieldIterator<FProperty> It(InStructDef); It; ++It)
+    {
+        FProperty* Property = *It;
+        if (!Property || !Property->HasAnyPropertyFlags(CPF_Edit)) continue;
+
+        if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+        {
+            if (RecursionDepth < MaxRecursionDepth)
+            {
+                void* NestedStructData = StructProperty->ContainerPtrToValuePtr<void>(InStructData);
+                ParseStruct_Recursive(StructProperty->Struct, NestedStructData, RecursionDepth + 1);
+            }
+        }
+        else if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
+        {
+            CreateNumericNode(NumericProperty, InStructData);
+        }
+    }
+}
+
+void UDetailsPanelGenerator::CreateNumericNode(FNumericProperty* NumericProperty, void* ParentStructData)
+{
+    // ...创建对应的Number
+    FPropertyUIMetadata* RowData = UIDataTable->FindRow<FPropertyUIMetadata>(NumericProperty->GetFName(), "");
+    if (!RowData) return;
+
+    UPropertyEntryData* PropData = NewObject<UPropertyEntryData>(this);
+    PropData->DisplayName = RowData->DisplayName;
+    PropData->TargetProperty = NumericProperty;
+    PropData->ParentStructData = ParentStructData;
+    PropData->MinValue = RowData->ClampMin;
+    PropData->MaxValue = RowData->ClampMax;
+    PropData->DefaultValue = RowData->DefaultValue;
+
+    void* ValuePtr = NumericProperty->ContainerPtrToValuePtr<void>(ParentStructData);
+    float InitialValue = NumericProperty->IsFloatingPoint() ? NumericProperty->GetFloatingPointPropertyValue(ValuePtr) : NumericProperty->GetSignedIntPropertyValue(ValuePtr);
+    float ClampedInitialValue = FMath::Clamp(InitialValue, PropData->MinValue, PropData->MaxValue);
+    PropData->CurrentValue = ClampedInitialValue;
+
+    PropData->OnValueUpdated.AddDynamic(this, &UDetailsPanelGenerator::HandleSingleValueUpdated);
+    AllPropertyData.Add(PropData);
+
+    // 创建对应的筛选器
+    CreateFilterNode(NumericProperty->GetFName());
+}
+
+void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
+{
+    if (!WatchedRootProperty) return;
+
+    UStruct* RootStructDef = WatchedRootProperty->Struct;
+    if (!RootStructDef) return;
+
+    auto ParentProperty = RootStructDef->FindPropertyByName(ParentName);
+    if (!ParentProperty) return;
+
+    FPropertyUIMetadata* RowData = UIDataTable->FindRow<FPropertyUIMetadata>(ParentName, "");
+    if (!RowData) return;
+
+    FText DisplayName = RowData->DisplayName;
+    FName CategoryString = *(RowData->Category);
+
+    UFilterNodeData* CategoryNode = nullptr;
+    if (UFilterNodeData** FoundNode = CategoryMap.Find(CategoryString))
+    {
+        CategoryNode = *FoundNode;
+    }
+    else
+    {
+        CategoryNode = NewObject<UFilterNodeData>(this);
+        CategoryNode->NodeType = EFilterNodeType::Category;
+        CategoryNode->DisplayName = FText::FromName(CategoryString);
+        CategoryMap.Add(CategoryString, CategoryNode);
+        FilterTreeData.Add(CategoryNode);
+    }
+
+    auto InStructData = WatchedRootProperty->ContainerPtrToValuePtr<void>(WatchedObject);
+    UFilterNodeData* FilterNode = NewObject<UFilterNodeData>(this);
+    FilterNode->NodeType = EFilterNodeType::Property;
+    FilterNode->DisplayName = DisplayName;
+    FilterNode->ParentStructData = InStructData;
+    FilterNode->FilterPropertyName = ParentName;
+
+    const FString OverrideBoolName = FString::Printf(TEXT("bOverride_%s"), *(ParentName.ToString()));
+    FBoolProperty* BoolProperty = FindFProperty<FBoolProperty>(RootStructDef, *OverrideBoolName);
+    if (BoolProperty)
+    {
+        FilterNode->bHasOverrideSwitch = true;
+        FilterNode->TargetProperty = BoolProperty;
+        FilterNode->bIsChecked = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(InStructData));
+    }
+    else
+    {
+        FilterNode->bHasOverrideSwitch = false;
+        FilterNode->TargetProperty = nullptr;
+        FilterNode->bIsChecked = true;
+    }
+
+    FilterNode->OnStateChanged.AddDynamic(this, &UDetailsPanelGenerator::OnFilterChanged);
+    CategoryNode->Children.Add(FilterNode);
+}
+
+void UDetailsPanelGenerator::RefreshListView()
+{
+    TArray<UObject*> ItemsToShow = {};
+    TMap<FName, bool> VisibilityMap = {};
+    for (UFilterNodeData* CategoryNode : FilterTreeData)
+    {
+        for (UFilterNodeData* PropNode : CategoryNode->Children)
+        {
+            if (PropNode)
+            {
+                VisibilityMap.Add(PropNode->FilterPropertyName, PropNode->bIsChecked);
+            }
+        }
+    }
+
+    for (UPropertyEntryData* PropData : AllPropertyData)
+    {
+        if (!PropData || !PropData->TargetProperty) continue;
+
+        const FName PropName = PropData->TargetProperty->GetFName();
+        const bool bShouldBeVisible = VisibilityMap.FindOrAdd(PropName, true);
+
+        if (bShouldBeVisible)
+        {
+            ItemsToShow.Add(PropData);
+        }
+    }
+
+    MainListView->SetListItems(ItemsToShow);
 }
 
 FReply UDetailsPanelGenerator::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -115,70 +304,26 @@ FReply UDetailsPanelGenerator::NativeOnMouseButtonDown(const FGeometry& InGeomet
     return bHandle ? FReply::Handled() : FReply::Unhandled();
 }
 
-void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPropertyName)
-{
-    if (!TargetObject || !MainListView || !CategoryListView)
-    {
-        return;
-    }
-
-    WatchedObject = TargetObject;
-    RootPropertyName = StructPropertyName;
-
-    FStructProperty* RootStructProperty = FindFProperty<FStructProperty>(WatchedObject->GetClass(), RootPropertyName);
-    WatchedRootProperty = RootStructProperty;
-
-    // 1. 从反射生成所有的数据对象
-    GenerateDataFromReflection();
-
-    // 2. 填充TreeView
-    CategoryListView->ClearListItems();
-    CategoryListView->SetListItems(TArray<UObject*>(FilterTreeData));
-
-    // 3. 根据初始筛选条件，刷新ListView
-    RefreshListView();
-}
-
 void UDetailsPanelGenerator::ResetAllToDefaults()
 {
-    //UE_LOG(LogTemp, Log, TEXT("--- 正在重置所有已覆盖的属性值为默认值 ---"));
-
     bool bAtLeastOneValueChanged = false;
 
     for (UPropertyEntryData* PropData : AllPropertyData)
     {
         if (PropData && PropData->TargetProperty)
         {
-            FString OverrideBoolName = FString::Printf(TEXT("bOverride_%s"), *PropData->TargetProperty->GetName());
-            FBoolProperty* OverrideProperty = FindFProperty<FBoolProperty>(PropData->TargetProperty->GetOwnerStruct(), *OverrideBoolName);
-
-            if (OverrideProperty && OverrideProperty->GetPropertyValue(OverrideProperty->ContainerPtrToValuePtr<void>(PropData->ParentStructData)))
+            if (!FMath::IsNearlyEqual(PropData->CurrentValue, PropData->DefaultValue))
             {
-                // 只有当值真的需要被重置时，才标记为已改变
-                if (!FMath::IsNearlyEqual(PropData->CurrentValue, PropData->DefaultValue))
-                {
-                    const float DefaultValue = PropData->DefaultValue;
-                    PropData->UpdateSourceData(DefaultValue);
-                    bAtLeastOneValueChanged = true;
-                    //UE_LOG(LogTemp, Log, TEXT("属性 '%s' 已被重置为默认值: %f"), *PropData->TargetProperty->GetName(), DefaultValue);
-                }
+                const float DefaultValue = PropData->DefaultValue;
+                PropData->UpdateSourceData(DefaultValue);
+                bAtLeastOneValueChanged = true;
             }
         }
     }
 
-    // --- START OF THE FINAL FIX ---
-
-    // 2. 在所有数据都被重置后，我们需要强制刷新UI
-    //    这个检查是可选的，但可以避免在没有任何值改变时进行不必要的UI刷新
     if (bAtLeastOneValueChanged)
     {
-        // 【核心修正】调用 RegenerateAllEntries()
-        // 这个函数会强制ListView销毁所有现有条目控件，并重新创建它们。
-        // 这将保证每个新创建的SliderEntry都会调用NativeOnListItemObjectSet，
-        // 从而读取到已经被我们重置回默认值的最新数据。
         MainListView->RegenerateAllEntries();
-
-        // 3. 最后，发出总的通知
         OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
     }
 }
@@ -195,6 +340,9 @@ void UDetailsPanelGenerator::OnCategoryEntryGenerated(UUserWidget& Widget)
         Entry->OnHovered.AddDynamic(this, &UDetailsPanelGenerator::ShowSubFilterMenu);
         Entry->OnUnhovered.AddDynamic(this, &UDetailsPanelGenerator::HideSubFilterMenu);
         Entry->OnToggled.AddDynamic(this, &UDetailsPanelGenerator::HandleCategoryToggled);
+
+        // 刷新状态
+        Entry->RefreshState(Entry->GetListItem());
     }
 }
 
@@ -225,22 +373,17 @@ void UDetailsPanelGenerator::ResetSearchResult()
 
 void UDetailsPanelGenerator::RefreshCategoryEntries()
 {
-    // ListView没有一个简单的方法来“刷新”现有条目。
-    // 最简单可靠的方法是重新设置列表项，这会强制重建所有条目并调用NativeOnListItemObjectSet
     CategoryListView->SetListItems(TArray<UObject*>(FilterTreeData));
-
-    //// 由于重新设置列表项会销毁旧控件，我们需要重新绑定新控件的委托
-    //// 幸运的是，ListView会在下一帧才销毁，所以我们在这里重新绑定
-    //CategoryListView->OnEntryWidgetGenerated().Clear(); // 清除旧的绑定，防止重复
-    //CategoryListView->OnEntryWidgetGenerated().AddUObject(this, &UDetailsPanelGenerator::OnCategoryEntryGenerated);
 }
 
-void UDetailsPanelGenerator::RefreshSingleCategoryEntry(UCategoryEntry* Entry)
+void UDetailsPanelGenerator::RefreshEveryCategoryState()
 {
-    if (Entry)
+    for (const auto ChildEntry : CategoryListView->GetDisplayedEntryWidgets())
     {
-        // 根据其子项的最新数据状态，重新计算并显示正确的“三态”。
-        Entry->RefreshState(Entry->GetListItem());
+        if (UCategoryEntry* Entry = Cast<UCategoryEntry>(ChildEntry))
+        {
+            Entry->RefreshState(Entry->GetListItem());
+        }
     }
 }
 
@@ -300,61 +443,23 @@ void UDetailsPanelGenerator::HandleSingleValueUpdated(UPropertyEntryData* Update
 
 void UDetailsPanelGenerator::ResetPropertyToDefault(UFilterNodeData* NodeDataToReset)
 {
-    // 1. --- 安全检查 ---
-    // 确保传入的数据节点和它包含的属性指针都是有效的。
     if (!NodeDataToReset || !NodeDataToReset->TargetProperty)
     {
         return;
     }
 
-    // 2. --- 推导属性名 ---
-    // 获取布尔属性的名称 (例如 "bOverride_WhiteTemp")。
-    FString BoolPropertyName = NodeDataToReset->TargetProperty->GetName();
-
-    // FString::RemoveFromStart会移除前缀并返回一个bool值表示是否成功。
-    // 这是一个完美的检查，确保我们只处理我们关心的 bOverride_ 属性。
-    if (!BoolPropertyName.RemoveFromStart(TEXT("bOverride_")))
-    {
-        // 如果属性名不以"bOverride_"开头，这不是我们应该处理的情况，直接返回。
-        return;
-    }
-
-    // 现在 BoolPropertyName 变量的值变成了 "WhiteTemp"。
-    // 我们用它来创建一个FName，用于后续的比较。
-    const FName NumericPropertyName(*BoolPropertyName);
-
-    // 3. --- 查找并重置 ---
-    // 遍历我们缓存的所有数值属性的数据列表 (AllPropertyData)。
     for (UPropertyEntryData* PropData : AllPropertyData)
     {
-        // 再次进行安全检查，确保列表中的数据是有效的。
         if (PropData && PropData->TargetProperty)
         {
-            // 比较当前数值属性的名称是否与我们推导出的名称相匹配。
-            if (PropData->TargetProperty->GetFName() == NumericPropertyName)
+            if (PropData->TargetProperty->GetFName() == NodeDataToReset->FilterPropertyName)
             {
-                // 4. --- 找到了！执行重置操作 ---
-
-                // a. 从数据对象中获取我们在一开始就保存好的默认值。
                 const float DefaultValue = PropData->DefaultValue;
-
-                // b. 调用该数据对象自己的UpdateSourceData函数，
-                //    这个函数已经包含了所有必要的反射逻辑，可以将默认值写回到底层内存中。
                 PropData->UpdateSourceData(DefaultValue);
-
-                // c. (可选但推荐) 打印一条日志，方便调试，确认操作已执行。
-                //UE_LOG(LogTemp, Log, TEXT("属性 '%s' 已被重置为默认值: %f"), *NumericPropertyName.ToString(), DefaultValue);
-
-                // d. 任务已完成，无需继续遍历，跳出循环。
                 break;
             }
         }
     }
-}
-
-bool UDetailsPanelGenerator::HandleGlobalMouseDown(const FPointerEvent& MouseEvent)
-{
-    return false;
 }
 
 void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
@@ -372,7 +477,7 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
     WS_ToggleSearch->SetActiveWidgetIndex(1);
 
     TArray<UFilterNodeData*> FoundItems;
-    for (UFilterNodeData* Item : AllFilterableItems)
+    for (UFilterNodeData* Item : AllFilterChildItems)
     {
         if (Item && Item->DisplayName.ToString().Contains(SearchString))
         {
@@ -382,7 +487,7 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
 
     if (FoundItems.Num() > 0)
     {
-        // 【核心修改】我们现在手动遍历找到的数据，并为每一项创建UI
+        // 我们现在手动遍历找到的数据，并为每一项创建UI
         for (UFilterNodeData* FoundItem : FoundItems)
         {
             // 创建一个 Entry Widget
@@ -392,8 +497,8 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
                 // 手动调用 NativeOnListItemObjectSet 来用数据填充UI
                 // 注意：这里我们模拟了UListView的行为
                 NewEntry->RefreshState(FoundItem);
-
-                // 【核心修改】直接在这里为新创建的控件绑定点击事件
+                NewEntry->SetCheckBoxVisibility(false);
+                // 直接在这里为新创建的控件绑定点击事件
                 // 我们需要一个方法来捕获点击，最好的方式是在CheckBoxEntry上创建一个新的委托
                 NewEntry->OnClicked.RemoveDynamic(this, &UDetailsPanelGenerator::OnSearchResultClicked);
                 NewEntry->OnClicked.AddDynamic(this, &UDetailsPanelGenerator::OnSearchResultClicked);
@@ -436,10 +541,10 @@ void UDetailsPanelGenerator::OnSearchResultClicked(UFilterNodeData* ClickedNode)
 {
     if (ClickedNode)
     {
-        ClickedNode->UpdateSourceDataAndBroadcast(true);
+        ClickedNode->UpdateSourceDataAndBroadcast(!ClickedNode->bIsChecked);
         SearchTextBox->SetText(FText::GetEmpty());
         SearchResultsBox->Reset(true);
-        SearchResultsBox->SetVisibility(ESlateVisibility::Collapsed);
+        SearchResultContainer->SetVisibility(ESlateVisibility::Collapsed);
     }
 }
 
@@ -461,37 +566,24 @@ void UDetailsPanelGenerator::HandleCategoryToggled(UFilterNodeData* CategoryData
     {
         // 2. 更新每个子项的底层反射数据
         ChildNode->UpdateSourceDataAndBroadcast(bIsChecked);
+
+        if (!bIsChecked)
+        {
+            ResetPropertyToDefault(ChildNode);
+        }
     }
 
     for (UCheckBoxEntry* VisibleEntry : VisibleCheckBoxEntries)
     {
-        // 强制它用其关联的最新数据来刷新自己的外观。
         if (VisibleEntry)
         {
             VisibleEntry->RefreshState(VisibleEntry->GetListItem());
         }
     }
 
-    bool bValuesChanged = false;
-    for (UFilterNodeData* ChildNode : CategoryData->Children)
-    {
-        // 先只更新数据，不广播
-        ChildNode->bIsChecked = bIsChecked;
-        if (ChildNode->TargetProperty && ChildNode->ParentStructData)
-        {
-            void* ValuePtr = ChildNode->TargetProperty->ContainerPtrToValuePtr<void>(ChildNode->ParentStructData);
-            ChildNode->TargetProperty->SetPropertyValue(ValuePtr, bIsChecked);
-        }
-
-        if (!bIsChecked)
-        {
-            ResetPropertyToDefault(ChildNode);
-            bValuesChanged = true;
-        }
-    }
-
     RefreshListView();
     RefreshCategoryEntries();
+    RefreshEveryCategoryState();
 
     OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
 }
@@ -523,216 +615,21 @@ void UDetailsPanelGenerator::ExecuteHideMenu()
     }
 }
 
-void UDetailsPanelGenerator::GenerateDataFromReflection()
-{
-    AllPropertyData.Empty();
-    FilterTreeData.Empty();
-    AllFilterableItems.Empty();
-
-    FStructProperty* RootStructProperty = FindFProperty<FStructProperty>(WatchedObject->GetClass(), RootPropertyName);
-    if (!RootStructProperty) return;
-
-    UStruct* RootStructDef = RootStructProperty->Struct;
-    void* RootStructData = RootStructProperty->ContainerPtrToValuePtr<void>(WatchedObject);
-    TMap<FName, UFilterNodeData*> CategoryMap;
-
-    ParseStruct_Recursive(RootStructDef, RootStructData, CategoryMap, 0);
-
-    for (UFilterNodeData* CategoryNode : FilterTreeData)
-    {
-        // 安全检查
-        if (CategoryNode && CategoryNode->Children.Num() > 0)
-        {
-            // 将这个分类下的所有子项一次性地追加到扁平化列表中
-            AllFilterableItems.Append(CategoryNode->Children);
-        }
-    }
-}
-
-void UDetailsPanelGenerator::ParseStruct_Recursive(UStruct* InStructDef, void* InStructData, TMap<FName, UFilterNodeData*>& CategoryMap, int32 RecursionDepth)
-{
-    if (!InStructDef || !InStructData || RecursionDepth > 1) return;
-
-    for (TFieldIterator<FProperty> It(InStructDef); It; ++It)
-    {
-        FProperty* Property = *It;
-        if (!Property || !Property->HasAnyPropertyFlags(CPF_Edit)) continue;
-
-        if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
-        {
-            if (BoolProperty->GetName().StartsWith("bOverride_"))
-            {
-                // --- START OF FINAL FIX ---
-
-                FString ParamName = BoolProperty->GetName();
-                ParamName.RemoveFromStart(TEXT("bOverride_"));
-                FProperty* RealProperty = InStructDef->FindPropertyByName(*ParamName);
-
-                // 【优化】前置条件检查：
-                // 1. 必须找到对应的真实属性 (RealProperty != nullptr)
-                // 2. 并且这个真实属性的类型必须是数值类型 (FNumericProperty)
-                // 只有同时满足这两个条件，我们才为它创建筛选器条目。
-                if (!RealProperty || !RealProperty->IsA<FNumericProperty>())
-                {
-                    // 如果不满足条件，就直接跳过这个 bOverride_ 开关，
-                    // 不为它创建任何UI。
-                    continue;
-                }
-
-                FText DisplayName;
-                FString CategoryString;
-
-                if (RealProperty)
-                {
-                    // 理想情况：找到了对应的真实属性，从它那里获取信息
-                    DisplayName = RealProperty->GetDisplayNameText();
-                    CategoryString = RealProperty->GetMetaData(TEXT("Category"));
-                }
-                else
-                {
-                    // 降级处理：没找到真实属性，就从 bOverride_... 布尔属性自身获取信息
-                    DisplayName = BoolProperty->GetDisplayNameText();
-                    if (DisplayName.IsEmpty()) // 如果DisplayName为空，就用参数名
-                    {
-                        DisplayName = FText::FromString(ParamName);
-                    }
-                    CategoryString = BoolProperty->GetMetaData(TEXT("Category"));
-                }
-
-                if (CategoryString.IsEmpty())
-                {
-                    CategoryString = TEXT("Default"); // 默认分类
-                }
-                FName Category = FName(*CategoryString);
-
-                // 查找或创建分类节点
-                UFilterNodeData* CategoryNode = nullptr;
-                if (UFilterNodeData** FoundNode = CategoryMap.Find(Category))
-                {
-                    CategoryNode = *FoundNode;
-                }
-                else
-                {
-                    CategoryNode = NewObject<UFilterNodeData>(this);
-                    CategoryNode->NodeType = EFilterNodeType::Category;
-                    CategoryNode->DisplayName = FText::FromString(CategoryString);
-                    CategoryMap.Add(Category, CategoryNode);
-                    FilterTreeData.Add(CategoryNode);
-                }
-
-                // 创建属性节点
-                UFilterNodeData* FilterNode = NewObject<UFilterNodeData>(this);
-                FilterNode->NodeType = EFilterNodeType::Property;
-                FilterNode->DisplayName = DisplayName;
-                FilterNode->TargetProperty = BoolProperty;
-                FilterNode->ParentStructData = InStructData;
-                FilterNode->bIsChecked = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(InStructData));
-
-                FilterNode->OnStateChanged.AddDynamic(this, &UDetailsPanelGenerator::OnFilterChanged);
-
-                CategoryNode->Children.Add(FilterNode);
-
-                // --- END OF FINAL FIX ---
-            }
-        }
-        else if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
-        {
-            UPropertyEntryData* PropData = NewObject<UPropertyEntryData>(this);
-            PropData->DisplayName = NumericProperty->GetDisplayNameText();
-            PropData->TargetProperty = NumericProperty;
-            PropData->ParentStructData = InStructData;
-
-            void* ValuePtr = NumericProperty->ContainerPtrToValuePtr<void>(InStructData);
-            float InitialValue = NumericProperty->IsFloatingPoint() ? NumericProperty->GetFloatingPointPropertyValue(ValuePtr) : NumericProperty->GetSignedIntPropertyValue(ValuePtr);
-
-            if (NumericProperty->HasMetaData(TEXT("UIMin")) && NumericProperty->HasMetaData(TEXT("UIMax")))
-            {
-                PropData->MinValue = FCString::Atof(*NumericProperty->GetMetaData(TEXT("UIMin")));
-                PropData->MaxValue = FCString::Atof(*NumericProperty->GetMetaData(TEXT("UIMax")));
-            }
-            else if (NumericProperty->HasMetaData(TEXT("ClampMin")) && NumericProperty->HasMetaData(TEXT("ClampMax")))
-            {
-                PropData->MinValue = FCString::Atof(*NumericProperty->GetMetaData(TEXT("ClampMin")));
-                PropData->MaxValue = FCString::Atof(*NumericProperty->GetMetaData(TEXT("ClampMax")));
-            }
-            else
-            {
-                // 如果都找不到，提供一个安全的默认值
-                PropData->MinValue = 0.f;
-                PropData->MaxValue = 1.f;
-            }
-
-            float ClampedInitialValue = FMath::Clamp(InitialValue, PropData->MinValue, PropData->MaxValue);
-
-            PropData->CurrentValue = ClampedInitialValue;
-            PropData->DefaultValue = ClampedInitialValue;
-
-            PropData->OnValueUpdated.AddDynamic(this, &UDetailsPanelGenerator::HandleSingleValueUpdated);
-            AllPropertyData.Add(PropData);
-        }
-        else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
-        {
-            // ... (这部分逻辑保持之前修正后的版本)
-            FString OverrideBoolName = FString::Printf(TEXT("bOverride_%s"), *StructProperty->GetName());
-            FBoolProperty* OverrideProperty = FindFProperty<FBoolProperty>(InStructDef, *OverrideBoolName);
-            if (OverrideProperty && !OverrideProperty->GetPropertyValue(OverrideProperty->ContainerPtrToValuePtr<void>(InStructData)))
-            {
-                continue;
-            }
-            void* NestedStructData = StructProperty->ContainerPtrToValuePtr<void>(InStructData);
-            ParseStruct_Recursive(StructProperty->Struct, NestedStructData, CategoryMap, RecursionDepth + 1);
-        }
-    }
-}
-
-void UDetailsPanelGenerator::RefreshListView()
-{
-    TArray<UObject*> ItemsToShow;
-
-    for (UPropertyEntryData* PropData : AllPropertyData)
-    {
-        if (!PropData || !PropData->TargetProperty) continue;
-
-        // 构造与之对应的 override 开关的名字
-        FString OverrideBoolName = FString::Printf(TEXT("bOverride_%s"), *PropData->TargetProperty->GetName());
-
-        FBoolProperty* OverrideProperty = FindFProperty<FBoolProperty>(PropData->TargetProperty->GetOwnerStruct(), *OverrideBoolName);
-
-        if (!OverrideProperty)
-        {
-            ItemsToShow.Add(PropData);
-            continue;
-        }
-
-        bool bIsChecked = OverrideProperty->GetPropertyValue(OverrideProperty->ContainerPtrToValuePtr<void>(PropData->ParentStructData));
-
-        if (bIsChecked)
-        {
-            ItemsToShow.Add(PropData);
-        }
-    }
-
-    MainListView->SetListItems(ItemsToShow);
-}
-
 void UDetailsPanelGenerator::OnFilterChanged(UFilterNodeData* NodeData, bool bNewState)
 {
-    bool bValueChanged = false;
-
     if (!bNewState)
     {
         ResetPropertyToDefault(NodeData);
-        bValueChanged = true;
     }
 
     // 当任何一个筛选器的状态改变时，我们只需要刷新ListView即可
     RefreshListView();
 
-    if (ActiveCategoryEntry.IsValid())
+    // 需要同步更新筛选类型的状态,同时打开了搜索框和种类框
+    if (bIsFilterPanelOpen && bIsSearchResultsOpen)
     {
-        RefreshSingleCategoryEntry(ActiveCategoryEntry.Get());
+        RefreshEveryCategoryState();
     }
-    //RefreshCategoryEntries();
 
     OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
 }

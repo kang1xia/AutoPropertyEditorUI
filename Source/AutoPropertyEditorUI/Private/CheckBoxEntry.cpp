@@ -47,6 +47,11 @@ void UCheckBoxEntry::RefreshState(UObject* ListItemObject)
     }
 }
 
+void UCheckBoxEntry::SetCheckBoxVisibility(bool bVis)
+{
+    ValueCheckBox->SetVisibility(bVis ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+}
+
 void UCheckBoxEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
     RefreshState(ListItemObject);

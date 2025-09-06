@@ -46,6 +46,9 @@ public:
     UFUNCTION()
     void RefreshState(UObject* ListItemObject);
 
+    UFUNCTION()
+    void SetCheckBoxVisibility(bool bVis);
+
 protected:
     /**
      * 【核心函数】当TreeView需要此控件显示某个数据对象时，会调用此函数。

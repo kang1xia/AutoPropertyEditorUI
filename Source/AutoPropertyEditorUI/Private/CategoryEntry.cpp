@@ -12,27 +12,6 @@ void UCategoryEntry::RefreshState(UObject* ListItemObject)
 
         const ECheckBoxState CurrentState = LinkedData->GetCheckStateFromChildren();
         MainCheckBox->SetCheckedState(CurrentState);
-
-        //// 根据子项的状态，决定“全选”复选框的初始状态
-        //// 逻辑：如果所有子项都被勾选，则为勾选状态；只要有一个子项未勾选，则为未勾选状态。
-        //bool bAllChildrenChecked = true;
-        //if (LinkedData->Children.Num() > 0)
-        //{
-        //    for (const UFilterNodeData* Child : LinkedData->Children)
-        //    {
-        //        if (!Child->bIsChecked)
-        //        {
-        //            bAllChildrenChecked = false;
-        //            break;
-        //        }
-        //    }
-        //}
-        //else
-        //{
-        //    bAllChildrenChecked = false; // 如果没有子项，也算未勾选
-        //}
-
-        //MainCheckBox->SetIsChecked(bAllChildrenChecked);
     }
 }
 
