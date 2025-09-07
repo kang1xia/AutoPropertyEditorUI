@@ -3,10 +3,10 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/UnrealType.h"
-#include "PropertyEntryData.generated.h"
+#include "NumericPropertyData.generated.h"
 
 UCLASS(BlueprintType)
-class AUTOPROPERTYEDITORUI_API UPropertyEntryData : public UObject
+class AUTOPROPERTYEDITORUI_API UNumericPropertyData : public UObject
 {
     GENERATED_BODY()
 
@@ -26,7 +26,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Property Entry")
     float DefaultValue;
 
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnValueUpdated, UPropertyEntryData*, Emitter);
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnValueUpdated, UNumericPropertyData*, Emitter);
     UPROPERTY(BlueprintAssignable)
     FOnValueUpdated OnValueUpdated;
 

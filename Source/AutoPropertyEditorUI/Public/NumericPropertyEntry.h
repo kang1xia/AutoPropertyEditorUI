@@ -3,14 +3,14 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/IUserObjectListEntry.h" 
-#include "SliderEntry.generated.h"
+#include "NumericPropertyEntry.generated.h"
 
 class USlider;
 class UTextBlock;
 class UButton;
 
 UCLASS()
-class AUTOPROPERTYEDITORUI_API USliderEntry : public UUserWidget, public IUserObjectListEntry
+class AUTOPROPERTYEDITORUI_API UNumericPropertyEntry : public UUserWidget, public IUserObjectListEntry
 {
     GENERATED_BODY()
 
@@ -45,5 +45,5 @@ private:
 
     // 保存对数据对象的引用，以便在事件发生时使用
     UPROPERTY(Transient) // 避免被垃圾回收
-    TObjectPtr<class UPropertyEntryData> LinkedData;
+    TObjectPtr<class UNumericPropertyData> LinkedData;
 };

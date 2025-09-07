@@ -1,20 +1,20 @@
-#include "CheckBoxEntry.h"
+#include "BoolPropertyEntry.h"
 #include "FilterNodeData.h"          // 引入我们为其服务的数据对象定义
 #include "Components/CheckBox.h"
 #include "Components/TextBlock.h"
 
-void UCheckBoxEntry::NativeOnInitialized()
+void UBoolPropertyEntry::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
 
     // 确保复选框控件有效，然后将其OnCheckStateChanged事件绑定到我们的处理函数上。
     if (ValueCheckBox)
     {
-        ValueCheckBox->OnCheckStateChanged.AddDynamic(this, &UCheckBoxEntry::HandleCheckStateChanged);
+        ValueCheckBox->OnCheckStateChanged.AddDynamic(this, &UBoolPropertyEntry::HandleCheckStateChanged);
     }
 }
 
-void UCheckBoxEntry::RefreshState(UObject* ListItemObject)
+void UBoolPropertyEntry::RefreshState(UObject* ListItemObject)
 {
     // 1. 将传入的通用UObject*安全地转换为我们期望的UFilterNodeData*类型。
     LinkedData = Cast<UFilterNodeData>(ListItemObject);
@@ -47,17 +47,17 @@ void UCheckBoxEntry::RefreshState(UObject* ListItemObject)
     }
 }
 
-void UCheckBoxEntry::SetCheckBoxVisibility(bool bVis)
+void UBoolPropertyEntry::SetCheckBoxVisibility(bool bVis)
 {
     ValueCheckBox->SetVisibility(bVis ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
-void UCheckBoxEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
+void UBoolPropertyEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
     RefreshState(ListItemObject);
 }
 
-void UCheckBoxEntry::HandleCheckStateChanged(bool bIsChecked)
+void UBoolPropertyEntry::HandleCheckStateChanged(bool bIsChecked)
 {
     // 当用户点击复选框时：
     // 1. 确保我们有一个有效的数据对象与之关联。
@@ -67,7 +67,7 @@ void UCheckBoxEntry::HandleCheckStateChanged(bool bIsChecked)
     }
 }
 
-void UCheckBoxEntry::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+void UBoolPropertyEntry::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
     Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
     SetHighlight(true);
@@ -75,14 +75,14 @@ void UCheckBoxEntry::NativeOnMouseEnter(const FGeometry& InGeometry, const FPoin
 }
 
 // 【新增】当鼠标离开此控件时，同样调用蓝图实现的SetHighlight事件
-void UCheckBoxEntry::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+void UBoolPropertyEntry::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
     Super::NativeOnMouseLeave(InMouseEvent);
     SetHighlight(false);
     OnUnhovered.Broadcast();
 }
 
-FReply UCheckBoxEntry::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+FReply UBoolPropertyEntry::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {

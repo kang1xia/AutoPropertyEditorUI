@@ -1,6 +1,6 @@
-#include "PropertyEntryData.h"
+#include "NumericPropertyData.h"
 
-void UPropertyEntryData::UpdateSourceData(float NewValue)
+void UNumericPropertyData::UpdateSourceData(float NewValue)
 {
     if (TargetProperty && ParentStructData)
     {

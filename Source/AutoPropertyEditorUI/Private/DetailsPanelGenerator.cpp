@@ -2,11 +2,11 @@
 #include "Components/ListView.h"
 #include "Components/TreeView.h"
 #include "FilterNodeData.h"
-#include "PropertyEntryData.h"
+#include "NumericPropertyData.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CanvasPanelSlot.h" 
-#include "CategoryEntry.h"
-#include "CheckBoxEntry.h"
+#include "FilterCategoryEntry.h"
+#include "BoolPropertyEntry.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
@@ -154,7 +154,7 @@ void UDetailsPanelGenerator::CreateNumericNode(FNumericProperty* NumericProperty
     FPropertyUIMetadata* RowData = UIDataTable->FindRow<FPropertyUIMetadata>(NumericProperty->GetFName(), "");
     if (!RowData) return;
 
-    UPropertyEntryData* PropData = NewObject<UPropertyEntryData>(this);
+    UNumericPropertyData* PropData = NewObject<UNumericPropertyData>(this);
     PropData->DisplayName = RowData->DisplayName;
     PropData->TargetProperty = NumericProperty;
     PropData->ParentStructData = ParentStructData;
@@ -245,7 +245,7 @@ void UDetailsPanelGenerator::RefreshListView()
         }
     }
 
-    for (UPropertyEntryData* PropData : AllPropertyData)
+    for (UNumericPropertyData* PropData : AllPropertyData)
     {
         if (!PropData || !PropData->TargetProperty) continue;
 
@@ -318,7 +318,7 @@ void UDetailsPanelGenerator::ResetAllToDefaults()
 {
     bool bAtLeastOneValueChanged = false;
 
-    for (UPropertyEntryData* PropData : AllPropertyData)
+    for (UNumericPropertyData* PropData : AllPropertyData)
     {
         if (PropData && PropData->TargetProperty)
         {
@@ -340,7 +340,7 @@ void UDetailsPanelGenerator::ResetAllToDefaults()
 
 void UDetailsPanelGenerator::OnCategoryEntryGenerated(UUserWidget& Widget)
 {
-    if (UCategoryEntry* Entry = Cast<UCategoryEntry>(&Widget))
+    if (UFilterCategoryEntry* Entry = Cast<UFilterCategoryEntry>(&Widget))
     {
         // 将我们的处理函数绑定到控件的委托上
         Entry->OnHovered.RemoveDynamic(this, &UDetailsPanelGenerator::ShowSubFilterMenu);
@@ -358,7 +358,7 @@ void UDetailsPanelGenerator::OnCategoryEntryGenerated(UUserWidget& Widget)
 
 void UDetailsPanelGenerator::OnCheckBoxEntryGenerated(UUserWidget& Widget)
 {
-    if (UCheckBoxEntry* Entry = Cast<UCheckBoxEntry>(&Widget))
+    if (UBoolPropertyEntry* Entry = Cast<UBoolPropertyEntry>(&Widget))
     {
         // 将主面板的计时器控制函数，绑定到每一个CheckBoxEntry的悬浮事件上
 
@@ -388,7 +388,7 @@ void UDetailsPanelGenerator::RefreshEveryCategoryState()
 {
     for (const auto ChildEntry : CategoryListView->GetDisplayedEntryWidgets())
     {
-        if (UCategoryEntry* Entry = Cast<UCategoryEntry>(ChildEntry))
+        if (UFilterCategoryEntry* Entry = Cast<UFilterCategoryEntry>(ChildEntry))
         {
             Entry->RefreshState(Entry->GetListItem());
         }
@@ -400,7 +400,7 @@ void UDetailsPanelGenerator::RefreshSubFilterList()
     VisibleCheckBoxEntries.Empty();
     for (auto ChildWidget : SubFilterListView->GetDisplayedEntryWidgets())
     {
-        if (UCheckBoxEntry* Entry = Cast<UCheckBoxEntry>(ChildWidget))
+        if (UBoolPropertyEntry* Entry = Cast<UBoolPropertyEntry>(ChildWidget))
         {
             VisibleCheckBoxEntries.Add(Entry);
             Entry->RefreshState(Entry->GetListItem());
@@ -445,7 +445,7 @@ void UDetailsPanelGenerator::HideCategoryMenu()
     ExecuteHideMenu();
 }
 
-void UDetailsPanelGenerator::HandleSingleValueUpdated(UPropertyEntryData* UpdatedPropertyData)
+void UDetailsPanelGenerator::HandleSingleValueUpdated(UNumericPropertyData* UpdatedPropertyData)
 {
     if (!UpdatedPropertyData || !UpdatedPropertyData->TargetProperty || !UpdatedPropertyData->ParentStructData)
     {
@@ -469,7 +469,7 @@ void UDetailsPanelGenerator::ResetPropertyToDefault(UFilterNodeData* NodeDataToR
         return;
     }
 
-    for (UPropertyEntryData* PropData : AllPropertyData)
+    for (UNumericPropertyData* PropData : AllPropertyData)
     {
         if (PropData && PropData->TargetProperty)
         {
@@ -512,7 +512,7 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
         for (UFilterNodeData* FoundItem : FoundItems)
         {
             // 创建一个 Entry Widget
-            UCheckBoxEntry* NewEntry = SearchResultsBox->CreateEntry<UCheckBoxEntry>();
+            UBoolPropertyEntry* NewEntry = SearchResultsBox->CreateEntry<UBoolPropertyEntry>();
             if (NewEntry)
             {
                 // 手动调用 NativeOnListItemObjectSet 来用数据填充UI
@@ -595,7 +595,7 @@ void UDetailsPanelGenerator::HandleCategoryToggled(UFilterNodeData* CategoryData
     }
 
     RefreshSubFilterList();
-    for (UCheckBoxEntry* VisibleEntry : VisibleCheckBoxEntries)
+    for (UBoolPropertyEntry* VisibleEntry : VisibleCheckBoxEntries)
     {
         if (VisibleEntry)
         {
@@ -730,7 +730,7 @@ void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterNodeData* CategoryData, UU
     {
         ActiveCategoryEntry.Get()->SetHighlight(false);
     }
-    ActiveCategoryEntry = TWeakObjectPtr<UCategoryEntry>(Cast<UCategoryEntry>(HoveredEntry));
+    ActiveCategoryEntry = TWeakObjectPtr<UFilterCategoryEntry>(Cast<UFilterCategoryEntry>(HoveredEntry));
     if (ActiveCategoryEntry.IsValid())
     {
         ActiveCategoryEntry.Get()->SetHighlight(true);

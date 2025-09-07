@@ -6,7 +6,7 @@
 #include "DetailsPanelGenerator.generated.h"
 
 class UListView;
-class UPropertyEntryData;
+class UNumericPropertyData;
 class UFilterNodeData;
 class UButton;
 class UEditableTextBox;
@@ -93,11 +93,11 @@ private:
     UPROPERTY() TObjectPtr<UObject> WatchedObject;
     FName RootPropertyName;
     FStructProperty* WatchedRootProperty = nullptr;
-    UPROPERTY(Transient) TWeakObjectPtr<class UCategoryEntry> ActiveCategoryEntry;
-    UPROPERTY(Transient) TArray<TObjectPtr<class UCheckBoxEntry>> VisibleCheckBoxEntries;
+    UPROPERTY(Transient) TWeakObjectPtr<class UFilterCategoryEntry> ActiveCategoryEntry;
+    UPROPERTY(Transient) TArray<TObjectPtr<class UBoolPropertyEntry>> VisibleCheckBoxEntries;
 
     // 保存所有可能生成的属性数据
-    UPROPERTY() TArray<TObjectPtr<UPropertyEntryData>> AllPropertyData;
+    UPROPERTY() TArray<TObjectPtr<UNumericPropertyData>> AllPropertyData;
 
     // 种类筛选器需要的内容
     TArray<TObjectPtr<UFilterNodeData>> FilterTreeData;
@@ -167,7 +167,7 @@ private:
 
     //...
     UFUNCTION()
-    void HandleSingleValueUpdated(UPropertyEntryData* UpdatedPropertyData);
+    void HandleSingleValueUpdated(UNumericPropertyData* UpdatedPropertyData);
 
     //恢复默认值
     UFUNCTION()

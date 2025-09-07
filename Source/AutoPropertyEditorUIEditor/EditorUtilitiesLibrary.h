@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "EditorUtilitiesBlueprintFunctionLibrary.generated.h"
+#include "EditorUtilitiesLibrary.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class AUTOPROPERTYEDITORUIEDITOR_API UEditorUtilitiesBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
+class AUTOPROPERTYEDITORUIEDITOR_API UEditorUtilitiesLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/IUserObjectListEntry.h"
-#include "CheckBoxEntry.generated.h"
+#include "BoolPropertyEntry.generated.h"
 
 // 前向声明，避免在头文件中引入完整的头文件，加快编译速度
 class UCheckBox;
@@ -20,7 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEntryClicked, UFilterNodeData*, C
  * 它实现了IUserObjectListEntry接口，使其能够被TreeView用作条目控件。
  */
 UCLASS()
-class AUTOPROPERTYEDITORUI_API UCheckBoxEntry : public UUserWidget, public IUserObjectListEntry
+class AUTOPROPERTYEDITORUI_API UBoolPropertyEntry : public UUserWidget, public IUserObjectListEntry
 {
     GENERATED_BODY()
 

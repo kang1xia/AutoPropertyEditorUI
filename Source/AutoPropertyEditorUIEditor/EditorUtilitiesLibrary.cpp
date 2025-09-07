@@ -1,12 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "EditorUtilitiesBlueprintFunctionLibrary.h"
+#include "EditorUtilitiesLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "FileHelpers.h" 
 #include "UObject/SavePackage.h"
 #include "Misc/MessageDialog.h"
 
-UDataAsset* UEditorUtilitiesBlueprintFunctionLibrary::CreateDataAsset(const FString& PackagePathName, const UClass* DataAssetClass)
+UDataAsset* UEditorUtilitiesLibrary::CreateDataAsset(const FString& PackagePathName, const UClass* DataAssetClass)
 {
 	if (DataAssetClass != nullptr)
 	{
@@ -39,7 +39,7 @@ UDataAsset* UEditorUtilitiesBlueprintFunctionLibrary::CreateDataAsset(const FStr
 	return nullptr;
 }
 
-void UEditorUtilitiesBlueprintFunctionLibrary::PopMessageDialog(EAppMsgCategory Category, const FString& Content)
+void UEditorUtilitiesLibrary::PopMessageDialog(EAppMsgCategory Category, const FString& Content)
 {
 	FMessageDialog::Open(Category, EAppMsgType::Ok, FText::FromString(FString::Printf(TEXT("%s"), *Content)));
 }

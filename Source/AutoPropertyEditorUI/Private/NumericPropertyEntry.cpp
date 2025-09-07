@@ -1,24 +1,24 @@
-﻿#include "SliderEntry.h"
-#include "PropertyEntryData.h"
+﻿#include "NumericPropertyEntry.h"
+#include "NumericPropertyData.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/ListView.h"
 #include "Components/Button.h"
 
-void USliderEntry::NativeOnInitialized()
+void UNumericPropertyEntry::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
     if (ValueSlider)
     {
-        ValueSlider->OnValueChanged.AddDynamic(this, &USliderEntry::HandleSliderValueChanged);
-        BT_Reset->OnClicked.AddDynamic(this, &USliderEntry::HandleResetClicked);
+        ValueSlider->OnValueChanged.AddDynamic(this, &UNumericPropertyEntry::HandleSliderValueChanged);
+        BT_Reset->OnClicked.AddDynamic(this, &UNumericPropertyEntry::HandleResetClicked);
     }
 }
 
-void USliderEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
+void UNumericPropertyEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
     // 1. 将通用UObject转换为我们的特定数据类型
-    LinkedData = Cast<UPropertyEntryData>(ListItemObject);
+    LinkedData = Cast<UNumericPropertyData>(ListItemObject);
     if (!LinkedData) return;
 
     // 2. 使用数据对象来配置UI
@@ -42,7 +42,7 @@ void USliderEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
     }
 }
 
-void USliderEntry::HandleSliderValueChanged(float InValue)
+void UNumericPropertyEntry::HandleSliderValueChanged(float InValue)
 {
     // 当UI变化时，通过数据对象来更新源数据
     if (LinkedData)
@@ -55,7 +55,7 @@ void USliderEntry::HandleSliderValueChanged(float InValue)
     }
 }
 
-void USliderEntry::HandleResetClicked()
+void UNumericPropertyEntry::HandleResetClicked()
 {
     ValueSlider->SetValue(LinkedData->DefaultValue);
     ValueText->SetText(FText::FromString(FString::Printf(TEXT("%.1f"), LinkedData->DefaultValue)));

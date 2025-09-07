@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/IUserObjectListEntry.h"
-#include "CategoryEntry.generated.h"
+#include "FilterCategoryEntry.generated.h"
 
 class UTextBlock;
 class UFilterNodeData;
@@ -15,7 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCategoryUnhovered);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCategoryToggled, UFilterNodeData*, CategoryData, bool, bIsChecked);
 
 UCLASS()
-class AUTOPROPERTYEDITORUI_API UCategoryEntry : public UUserWidget, public IUserObjectListEntry
+class AUTOPROPERTYEDITORUI_API UFilterCategoryEntry : public UUserWidget, public IUserObjectListEntry
 {
     GENERATED_BODY()
 

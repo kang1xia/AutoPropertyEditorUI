@@ -7,7 +7,7 @@
 #include "Editor.h"
 #include "Editor/ContentBrowser/Public/ContentBrowserModule.h"
 #include "Editor/ContentBrowser/Public/IContentBrowserSingleton.h"
-#include "EditorUtilitiesBlueprintFunctionLibrary.h"
+#include "EditorUtilitiesLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Factories/DataTableFactory.h"
 
@@ -28,7 +28,7 @@ void UPopulateDataTool::GenerateData()
     }
 
     FString Message = bSucceed ? TEXT("创建资产成功") : TEXT("创建资产失败");
-    UEditorUtilitiesBlueprintFunctionLibrary::PopMessageDialog(bSucceed ? EAppMsgCategory::Success : EAppMsgCategory::Error, Message);
+    UEditorUtilitiesLibrary::PopMessageDialog(bSucceed ? EAppMsgCategory::Success : EAppMsgCategory::Error, Message);
 #endif
 }
 
