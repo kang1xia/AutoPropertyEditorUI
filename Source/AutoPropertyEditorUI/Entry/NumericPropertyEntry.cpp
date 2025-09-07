@@ -1,5 +1,5 @@
 ﻿#include "NumericPropertyEntry.h"
-#include "NumericPropertyData.h"
+#include "../Data/NumericPropertyData.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/ListView.h"

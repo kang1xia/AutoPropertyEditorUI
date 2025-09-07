@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Types/SlateEnums.h"
-#include "FilterNodeData.generated.h"
+#include "BoolPropertyData.generated.h"
 
 UENUM(BlueprintType)
 enum class EFilterNodeType : uint8
@@ -13,7 +13,7 @@ enum class EFilterNodeType : uint8
 };
 
 UCLASS(BlueprintType)
-class AUTOPROPERTYEDITORUI_API UFilterNodeData : public UObject
+class AUTOPROPERTYEDITORUI_API UBoolPropertyData : public UObject
 {
     GENERATED_BODY()
 
@@ -31,12 +31,12 @@ public:
     FName FilterPropertyName;
 
     // 委托：当勾选状态改变时广播
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFilterStateChanged, UFilterNodeData*, EmitterNode, bool, bIsChecked);
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFilterStateChanged, UBoolPropertyData*, EmitterNode, bool, bIsChecked);
     UPROPERTY(BlueprintAssignable)
     FOnFilterStateChanged OnStateChanged;
 
     UPROPERTY(BlueprintReadOnly, Category = "Filter Node")
-    TArray<TObjectPtr<UFilterNodeData>> Children;
+    TArray<TObjectPtr<UBoolPropertyData>> Children;
 
     // --- C++ Only Data ---
     FBoolProperty* TargetProperty = nullptr;

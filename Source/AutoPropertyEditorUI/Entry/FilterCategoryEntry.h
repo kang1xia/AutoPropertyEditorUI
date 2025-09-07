@@ -6,13 +6,13 @@
 #include "FilterCategoryEntry.generated.h"
 
 class UTextBlock;
-class UFilterNodeData;
+class UBoolPropertyData;
 class UCheckBox;
 
 // 声明两个委托，用于通知主面板鼠标进入和离开的事件
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCategoryHovered, UFilterNodeData*, CategoryData, UUserWidget*, HoveredEntry);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCategoryHovered, UBoolPropertyData*, CategoryData, UUserWidget*, HoveredEntry);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCategoryUnhovered);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCategoryToggled, UFilterNodeData*, CategoryData, bool, bIsChecked);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCategoryToggled, UBoolPropertyData*, CategoryData, bool, bIsChecked);
 
 UCLASS()
 class AUTOPROPERTYEDITORUI_API UFilterCategoryEntry : public UUserWidget, public IUserObjectListEntry
@@ -41,7 +41,7 @@ public:
     void RefreshState(UObject* ListItemObject);
 
     /** 一个帮助函数，用于获取此条目所代表的数据 */
-    UFilterNodeData* GetLinkedData() const { return LinkedData; }
+    UBoolPropertyData* GetLinkedData() const { return LinkedData; }
 
 protected:
     // 实现 IUserObjectListEntry 的核心函数
@@ -63,7 +63,7 @@ protected:
 private:
     // 保存对此条目所代表的数据的引用
     UPROPERTY(Transient)
-    TObjectPtr<UFilterNodeData> LinkedData;
+    TObjectPtr<UBoolPropertyData> LinkedData;
 
     UFUNCTION()
     void HandleCheckStateChanged(bool bIsChecked);

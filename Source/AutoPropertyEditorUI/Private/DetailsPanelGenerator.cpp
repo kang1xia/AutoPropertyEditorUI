@@ -1,12 +1,12 @@
 ﻿#include "DetailsPanelGenerator.h"
 #include "Components/ListView.h"
 #include "Components/TreeView.h"
-#include "FilterNodeData.h"
-#include "NumericPropertyData.h"
+#include "../Data/BoolPropertyData.h"
+#include "../Data/NumericPropertyData.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CanvasPanelSlot.h" 
-#include "FilterCategoryEntry.h"
-#include "BoolPropertyEntry.h"
+#include "../Entry/FilterCategoryEntry.h"
+#include "../Entry/BoolPropertyEntry.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
@@ -17,7 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/IInputProcessor.h"
-#include "PropertyUIData.h"
+#include "../Data/PropertyUIData.h"
 #include "Kismet/KismetStringLibrary.h"
 
 void UDetailsPanelGenerator::NativePreConstruct()
@@ -113,7 +113,7 @@ void UDetailsPanelGenerator::GenerateDataFromReflection()
 
     ParseStruct_Recursive(RootStructDef, RootStructData, 0);
 
-    for (UFilterNodeData* CategoryNode : FilterTreeData)
+    for (UBoolPropertyData* CategoryNode : FilterTreeData)
     {
         // 安全检查
         if (CategoryNode && CategoryNode->Children.Num() > 0)
@@ -190,14 +190,14 @@ void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
     FText DisplayName = RowData->DisplayName;
     FName CategoryString = *(RowData->Category);
 
-    UFilterNodeData* CategoryNode = nullptr;
-    if (UFilterNodeData** FoundNode = CategoryMap.Find(CategoryString))
+    UBoolPropertyData* CategoryNode = nullptr;
+    if (UBoolPropertyData** FoundNode = CategoryMap.Find(CategoryString))
     {
         CategoryNode = *FoundNode;
     }
     else
     {
-        CategoryNode = NewObject<UFilterNodeData>(this);
+        CategoryNode = NewObject<UBoolPropertyData>(this);
         CategoryNode->NodeType = EFilterNodeType::Category;
         CategoryNode->DisplayName = FText::FromName(CategoryString);
         CategoryMap.Add(CategoryString, CategoryNode);
@@ -205,7 +205,7 @@ void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
     }
 
     auto InStructData = WatchedRootProperty->ContainerPtrToValuePtr<void>(WatchedObject);
-    UFilterNodeData* FilterNode = NewObject<UFilterNodeData>(this);
+    UBoolPropertyData* FilterNode = NewObject<UBoolPropertyData>(this);
     FilterNode->NodeType = EFilterNodeType::Property;
     FilterNode->DisplayName = DisplayName;
     FilterNode->ParentStructData = InStructData;
@@ -234,9 +234,9 @@ void UDetailsPanelGenerator::RefreshListView()
 {
     TArray<UObject*> ItemsToShow = {};
     TMap<FName, bool> VisibilityMap = {};
-    for (UFilterNodeData* CategoryNode : FilterTreeData)
+    for (UBoolPropertyData* CategoryNode : FilterTreeData)
     {
-        for (UFilterNodeData* PropNode : CategoryNode->Children)
+        for (UBoolPropertyData* PropNode : CategoryNode->Children)
         {
             if (PropNode)
             {
@@ -462,7 +462,7 @@ void UDetailsPanelGenerator::HandleSingleValueUpdated(UNumericPropertyData* Upda
     OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
 }
 
-void UDetailsPanelGenerator::ResetPropertyToDefault(UFilterNodeData* NodeDataToReset)
+void UDetailsPanelGenerator::ResetPropertyToDefault(UBoolPropertyData* NodeDataToReset)
 {
     if (!NodeDataToReset || !NodeDataToReset->TargetProperty)
     {
@@ -497,8 +497,8 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
     SearchResultsBox->Reset(true);
     WS_ToggleSearch->SetActiveWidgetIndex(1);
 
-    TArray<UFilterNodeData*> FoundItems;
-    for (UFilterNodeData* Item : AllFilterChildItems)
+    TArray<UBoolPropertyData*> FoundItems;
+    for (UBoolPropertyData* Item : AllFilterChildItems)
     {
         if (Item && Item->DisplayName.ToString().Contains(SearchString))
         {
@@ -509,7 +509,7 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
     if (FoundItems.Num() > 0)
     {
         // 我们现在手动遍历找到的数据，并为每一项创建UI
-        for (UFilterNodeData* FoundItem : FoundItems)
+        for (UBoolPropertyData* FoundItem : FoundItems)
         {
             // 创建一个 Entry Widget
             UBoolPropertyEntry* NewEntry = SearchResultsBox->CreateEntry<UBoolPropertyEntry>();
@@ -558,7 +558,7 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
     }
 }
 
-void UDetailsPanelGenerator::OnSearchResultClicked(UFilterNodeData* ClickedNode)
+void UDetailsPanelGenerator::OnSearchResultClicked(UBoolPropertyData* ClickedNode)
 {
     if (ClickedNode)
     {
@@ -578,12 +578,12 @@ void UDetailsPanelGenerator::OnClearSearchClicked()
     }
 }
 
-void UDetailsPanelGenerator::HandleCategoryToggled(UFilterNodeData* CategoryData, bool bIsChecked)
+void UDetailsPanelGenerator::HandleCategoryToggled(UBoolPropertyData* CategoryData, bool bIsChecked)
 {
     if (!CategoryData) return;
 
     // 1. 遍历该分类下的所有子项数据
-    for (UFilterNodeData* ChildNode : CategoryData->Children)
+    for (UBoolPropertyData* ChildNode : CategoryData->Children)
     {
         // 2. 更新每个子项的底层反射数据
         ChildNode->UpdateSourceDataAndBroadcast(bIsChecked);
@@ -635,7 +635,7 @@ void UDetailsPanelGenerator::ExecuteHideMenu()
     }
 }
 
-void UDetailsPanelGenerator::OnFilterChanged(UFilterNodeData* NodeData, bool bNewState)
+void UDetailsPanelGenerator::OnFilterChanged(UBoolPropertyData* NodeData, bool bNewState)
 {
     if (!bNewState)
     {
@@ -654,7 +654,7 @@ void UDetailsPanelGenerator::OnFilterChanged(UFilterNodeData* NodeData, bool bNe
     OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
 }
 
-void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterNodeData* CategoryData, UUserWidget* HoveredEntry)
+void UDetailsPanelGenerator::ShowSubFilterMenu(UBoolPropertyData* CategoryData, UUserWidget* HoveredEntry)
 {
     CancelHideMenuTimer();
   

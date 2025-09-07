@@ -2,12 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "MenuInputProcessor.h"
 #include "DetailsPanelGenerator.generated.h"
 
 class UListView;
 class UNumericPropertyData;
-class UFilterNodeData;
+class UBoolPropertyData;
 class UButton;
 class UEditableTextBox;
 class UDynamicEntryBox;
@@ -100,11 +99,11 @@ private:
     UPROPERTY() TArray<TObjectPtr<UNumericPropertyData>> AllPropertyData;
 
     // 种类筛选器需要的内容
-    TArray<TObjectPtr<UFilterNodeData>> FilterTreeData;
+    TArray<TObjectPtr<UBoolPropertyData>> FilterTreeData;
     // 所有种类下的子项
-    TArray<TObjectPtr<UFilterNodeData>> AllFilterChildItems;
+    TArray<TObjectPtr<UBoolPropertyData>> AllFilterChildItems;
     // 对应种类下的子项
-    TMap<FName, UFilterNodeData*> CategoryMap;
+    TMap<FName, UBoolPropertyData*> CategoryMap;
 
     // --- UI 更新 ---
     void RefreshListView();
@@ -120,10 +119,10 @@ private:
     * ********************************************************************************
     */
     UFUNCTION()
-    void OnFilterChanged(UFilterNodeData* NodeData, bool bNewState);
+    void OnFilterChanged(UBoolPropertyData* NodeData, bool bNewState);
 
     UFUNCTION()
-    void ShowSubFilterMenu(UFilterNodeData* CategoryData, UUserWidget* HoveredEntry);
+    void ShowSubFilterMenu(UBoolPropertyData* CategoryData, UUserWidget* HoveredEntry);
 
     UFUNCTION()
     void CancelHideMenuTimer();
@@ -140,7 +139,7 @@ private:
     * ********************************************************************************
     */
     UFUNCTION()
-    void HandleCategoryToggled(UFilterNodeData* CategoryData, bool bIsChecked);
+    void HandleCategoryToggled(UBoolPropertyData* CategoryData, bool bIsChecked);
 
     UFUNCTION()
     void ToggleShowCategory();
@@ -154,7 +153,7 @@ private:
     * ********************************************************************************
     */
     UFUNCTION()
-    void OnSearchResultClicked(UFilterNodeData* ClickedNode);
+    void OnSearchResultClicked(UBoolPropertyData* ClickedNode);
 
     UFUNCTION()
     void OnClearSearchClicked();
@@ -171,7 +170,7 @@ private:
 
     //恢复默认值
     UFUNCTION()
-    void ResetPropertyToDefault(UFilterNodeData* NodeDataToReset);
+    void ResetPropertyToDefault(UBoolPropertyData* NodeDataToReset);
 
     // 用于处理悬浮延迟的计时器句柄
     FTimerHandle HideMenuTimer;

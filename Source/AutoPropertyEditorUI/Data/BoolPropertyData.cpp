@@ -1,6 +1,6 @@
-#include "FilterNodeData.h"
+#include "BoolPropertyData.h"
 
-void UFilterNodeData::UpdateSourceDataAndBroadcast(bool bNewValue)
+void UBoolPropertyData::UpdateSourceDataAndBroadcast(bool bNewValue)
 {
     if (bIsChecked == bNewValue)
     {
@@ -20,7 +20,7 @@ void UFilterNodeData::UpdateSourceDataAndBroadcast(bool bNewValue)
     OnStateChanged.Broadcast(this, bIsChecked);
 }
 
-ECheckBoxState UFilterNodeData::GetCheckStateFromChildren() const
+ECheckBoxState UBoolPropertyData::GetCheckStateFromChildren() const
 {
     // 如果不是分类节点，或者没有子项，直接返回未勾选状态
     if (NodeType != EFilterNodeType::Category || Children.Num() == 0)
@@ -32,7 +32,7 @@ ECheckBoxState UFilterNodeData::GetCheckStateFromChildren() const
     int32 CheckedCount = 0;
 
     // 遍历所有子节点，统计勾选的数量
-    for (const UFilterNodeData* Child : Children)
+    for (const UBoolPropertyData* Child : Children)
     {
         if (Child && Child->bIsChecked)
         {

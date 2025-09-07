@@ -1,11 +1,11 @@
 ﻿#include "FilterCategoryEntry.h"
-#include "FilterNodeData.h"
+#include "../Data/BoolPropertyData.h"
 #include "Components/TextBlock.h"
 #include "Components/CheckBox.h"
 
 void UFilterCategoryEntry::RefreshState(UObject* ListItemObject)
 {
-    LinkedData = Cast<UFilterNodeData>(ListItemObject);
+    LinkedData = Cast<UBoolPropertyData>(ListItemObject);
     if (LinkedData)
     {
         CategoryNameText->SetText(LinkedData->DisplayName);

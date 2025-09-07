@@ -1,5 +1,5 @@
 ﻿#include "PopulateDataTool.h"
-#include "PropertyUIData.h"
+#include "../Data/PropertyUIData.h"
 #include "UObject/UnrealType.h"
 #include "Engine/DataTable.h"
 #include "Widgets/SWindow.h"

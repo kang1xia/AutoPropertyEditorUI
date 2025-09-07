@@ -8,11 +8,11 @@
 // 前向声明，避免在头文件中引入完整的头文件，加快编译速度
 class UCheckBox;
 class UTextBlock;
-class UFilterNodeData;
+class UBoolPropertyData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCheckBoxEntryHovered);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCheckBoxEntryUnhovered);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEntryClicked, UFilterNodeData*, ClickedData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEntryClicked, UBoolPropertyData*, ClickedData);
 
 /**
  * TreeView中用于显示筛选条件的条目控件。
@@ -89,5 +89,5 @@ private:
      * 标记为Transient，因为它是一个临时的运行时状态，不应被保存。
      */
     UPROPERTY(Transient)
-    TObjectPtr<UFilterNodeData> LinkedData;
+    TObjectPtr<UBoolPropertyData> LinkedData;
 };

@@ -1,5 +1,5 @@
 #include "BoolPropertyEntry.h"
-#include "FilterNodeData.h"          // 引入我们为其服务的数据对象定义
+#include "../Data/BoolPropertyData.h"
 #include "Components/CheckBox.h"
 #include "Components/TextBlock.h"
 
@@ -17,7 +17,7 @@ void UBoolPropertyEntry::NativeOnInitialized()
 void UBoolPropertyEntry::RefreshState(UObject* ListItemObject)
 {
     // 1. 将传入的通用UObject*安全地转换为我们期望的UFilterNodeData*类型。
-    LinkedData = Cast<UFilterNodeData>(ListItemObject);
+    LinkedData = Cast<UBoolPropertyData>(ListItemObject);
     if (!LinkedData)
     {
         // 如果转换失败，隐藏此条目以避免显示错误信息。
