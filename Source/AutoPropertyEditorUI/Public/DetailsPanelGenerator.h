@@ -7,6 +7,7 @@
 class UListView;
 class UNumericPropertyData;
 class UBoolPropertyData;
+class UFilterCategoryData;
 class UButton;
 class UEditableTextBox;
 class UDynamicEntryBox;
@@ -98,12 +99,12 @@ private:
     // 保存所有可能生成的属性数据
     UPROPERTY() TArray<TObjectPtr<UNumericPropertyData>> AllPropertyData;
 
-    // 种类筛选器需要的内容
-    TArray<TObjectPtr<UBoolPropertyData>> FilterTreeData;
     // 所有种类下的子项
     TArray<TObjectPtr<UBoolPropertyData>> AllFilterChildItems;
-    // 对应种类下的子项
-    TMap<FName, UBoolPropertyData*> CategoryMap;
+
+    // 筛选器种类
+    TArray<TObjectPtr<UFilterCategoryData>> FilterCategoryData;
+    TMap<FName, UFilterCategoryData*> FilterCategoryMap;
 
     // --- UI 更新 ---
     void RefreshListView();
@@ -122,9 +123,6 @@ private:
     void OnFilterChanged(UBoolPropertyData* NodeData, bool bNewState);
 
     UFUNCTION()
-    void ShowSubFilterMenu(UBoolPropertyData* CategoryData, UUserWidget* HoveredEntry);
-
-    UFUNCTION()
     void CancelHideMenuTimer();
 
     UFUNCTION()
@@ -139,11 +137,13 @@ private:
     * ********************************************************************************
     */
     UFUNCTION()
-    void HandleCategoryToggled(UBoolPropertyData* CategoryData, bool bIsChecked);
+    void HandleFilterCategoryDataToggled(UFilterCategoryData* CategoryData, bool bIsChecked);
+
+    UFUNCTION()
+    void ShowSubFilterMenu(UFilterCategoryData* CategoryData, UUserWidget* HoveredEntry);
 
     UFUNCTION()
     void ToggleShowCategory();
-
     void ShowCategoryMenu();
     void HideCategoryMenu();
 

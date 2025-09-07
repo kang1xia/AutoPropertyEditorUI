@@ -31,20 +31,8 @@ void UBoolPropertyEntry::RefreshState(UObject* ListItemObject)
     // 2. 使用数据对象中的信息来配置UI元素。
     TitleText->SetText(LinkedData->DisplayName);
 
-    // 3. 根据数据对象的类型，决定是否显示复选框。
-    // 分类节点（Category）不应该有复选框。
-    if (LinkedData->NodeType == EFilterNodeType::Category)
-    {
-        ValueCheckBox->SetVisibility(ESlateVisibility::Hidden);
-    }
-    else // 属性节点（Property）应该有复选框。
-    {
-        ValueCheckBox->SetVisibility(ESlateVisibility::Visible);
-
-        // 设置复选框的初始状态，注意不要触发绑定的事件。
-        // SetIsChecked函数不会触发OnCheckStateChanged事件。
-        ValueCheckBox->SetIsChecked(LinkedData->bIsChecked);
-    }
+    ValueCheckBox->SetVisibility(ESlateVisibility::Visible);
+    ValueCheckBox->SetIsChecked(LinkedData->bIsChecked);
 }
 
 void UBoolPropertyEntry::SetCheckBoxVisibility(bool bVis)

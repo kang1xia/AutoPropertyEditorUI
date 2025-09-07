@@ -3,6 +3,7 @@
 #include "Components/TreeView.h"
 #include "../Data/BoolPropertyData.h"
 #include "../Data/NumericPropertyData.h"
+#include "../Data/FilterCategoryData.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CanvasPanelSlot.h" 
 #include "../Entry/FilterCategoryEntry.h"
@@ -93,7 +94,7 @@ void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPr
 
     // 2. 填充TreeView
     CategoryListView->ClearListItems();
-    CategoryListView->SetListItems(TArray<UObject*>(FilterTreeData));
+    CategoryListView->SetListItems(TArray<UObject*>(FilterCategoryData));
 
     // 3. 根据初始筛选条件，刷新ListView
     RefreshListView();
@@ -102,9 +103,9 @@ void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPr
 void UDetailsPanelGenerator::GenerateDataFromReflection()
 {
     AllPropertyData.Empty();
-    FilterTreeData.Empty();
+    FilterCategoryData.Empty();
     AllFilterChildItems.Empty();
-    CategoryMap.Empty();
+    FilterCategoryMap.Empty();
 
     if (!WatchedRootProperty) return;
 
@@ -113,13 +114,13 @@ void UDetailsPanelGenerator::GenerateDataFromReflection()
 
     ParseStruct_Recursive(RootStructDef, RootStructData, 0);
 
-    for (UBoolPropertyData* CategoryNode : FilterTreeData)
+    for (UFilterCategoryData* FilterCategoryNode : FilterCategoryData)
     {
         // 安全检查
-        if (CategoryNode && CategoryNode->Children.Num() > 0)
+        if (FilterCategoryNode && FilterCategoryNode->Children.Num() > 0)
         {
             // 将这个分类下的所有子项一次性地追加到扁平化列表中
-            AllFilterChildItems.Append(CategoryNode->Children);
+            AllFilterChildItems.Append(FilterCategoryNode->Children);
         }
     }
 }
@@ -190,23 +191,22 @@ void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
     FText DisplayName = RowData->DisplayName;
     FName CategoryString = *(RowData->Category);
 
-    UBoolPropertyData* CategoryNode = nullptr;
-    if (UBoolPropertyData** FoundNode = CategoryMap.Find(CategoryString))
+    UFilterCategoryData* FilterCategoryNode = nullptr;
+    if (UFilterCategoryData** FoundNode = FilterCategoryMap.Find(CategoryString))
     {
-        CategoryNode = *FoundNode;
+        FilterCategoryNode = *FoundNode;
     }
     else
     {
-        CategoryNode = NewObject<UBoolPropertyData>(this);
-        CategoryNode->NodeType = EFilterNodeType::Category;
-        CategoryNode->DisplayName = FText::FromName(CategoryString);
-        CategoryMap.Add(CategoryString, CategoryNode);
-        FilterTreeData.Add(CategoryNode);
+        FilterCategoryNode = NewObject<UFilterCategoryData>(this);
+        FilterCategoryNode->DisplayName = FText::FromName(CategoryString);
+        FilterCategoryNode->bIsChecked = false;
+        FilterCategoryMap.Add(CategoryString, FilterCategoryNode);
+        FilterCategoryData.Add(FilterCategoryNode);
     }
 
     auto InStructData = WatchedRootProperty->ContainerPtrToValuePtr<void>(WatchedObject);
     UBoolPropertyData* FilterNode = NewObject<UBoolPropertyData>(this);
-    FilterNode->NodeType = EFilterNodeType::Property;
     FilterNode->DisplayName = DisplayName;
     FilterNode->ParentStructData = InStructData;
     FilterNode->FilterPropertyName = ParentName;
@@ -226,17 +226,17 @@ void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
         FilterNode->bIsChecked = false;
     }
 
-    FilterNode->OnStateChanged.AddDynamic(this, &UDetailsPanelGenerator::OnFilterChanged);
-    CategoryNode->Children.Add(FilterNode);
+    FilterNode->OnBoolPropertyStateChanged.AddDynamic(this, &UDetailsPanelGenerator::OnFilterChanged);
+    FilterCategoryNode->Children.Add(FilterNode);
 }
 
 void UDetailsPanelGenerator::RefreshListView()
 {
     TArray<UObject*> ItemsToShow = {};
     TMap<FName, bool> VisibilityMap = {};
-    for (UBoolPropertyData* CategoryNode : FilterTreeData)
+    for (UFilterCategoryData* FilterCategoryNode : FilterCategoryData)
     {
-        for (UBoolPropertyData* PropNode : CategoryNode->Children)
+        for (UBoolPropertyData* PropNode : FilterCategoryNode->Children)
         {
             if (PropNode)
             {
@@ -345,11 +345,11 @@ void UDetailsPanelGenerator::OnCategoryEntryGenerated(UUserWidget& Widget)
         // 将我们的处理函数绑定到控件的委托上
         Entry->OnHovered.RemoveDynamic(this, &UDetailsPanelGenerator::ShowSubFilterMenu);
         Entry->OnUnhovered.RemoveDynamic(this, &UDetailsPanelGenerator::HideSubFilterMenu);
-        Entry->OnToggled.RemoveDynamic(this, &UDetailsPanelGenerator::HandleCategoryToggled);
+        Entry->OnToggled.RemoveDynamic(this, &UDetailsPanelGenerator::HandleFilterCategoryDataToggled);
 
         Entry->OnHovered.AddDynamic(this, &UDetailsPanelGenerator::ShowSubFilterMenu);
         Entry->OnUnhovered.AddDynamic(this, &UDetailsPanelGenerator::HideSubFilterMenu);
-        Entry->OnToggled.AddDynamic(this, &UDetailsPanelGenerator::HandleCategoryToggled);
+        Entry->OnToggled.AddDynamic(this, &UDetailsPanelGenerator::HandleFilterCategoryDataToggled);
 
         // 刷新状态
         Entry->RefreshState(Entry->GetListItem());
@@ -381,7 +381,7 @@ void UDetailsPanelGenerator::ResetSearchResult()
 
 void UDetailsPanelGenerator::RefreshCategoryEntries()
 {
-    CategoryListView->SetListItems(TArray<UObject*>(FilterTreeData));
+    CategoryListView->SetListItems(TArray<UObject*>(FilterCategoryData));
 }
 
 void UDetailsPanelGenerator::RefreshEveryCategoryState()
@@ -578,7 +578,7 @@ void UDetailsPanelGenerator::OnClearSearchClicked()
     }
 }
 
-void UDetailsPanelGenerator::HandleCategoryToggled(UBoolPropertyData* CategoryData, bool bIsChecked)
+void UDetailsPanelGenerator::HandleFilterCategoryDataToggled(UFilterCategoryData* CategoryData, bool bIsChecked)
 {
     if (!CategoryData) return;
 
@@ -654,7 +654,7 @@ void UDetailsPanelGenerator::OnFilterChanged(UBoolPropertyData* NodeData, bool b
     OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
 }
 
-void UDetailsPanelGenerator::ShowSubFilterMenu(UBoolPropertyData* CategoryData, UUserWidget* HoveredEntry)
+void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterCategoryData* CategoryData, UUserWidget* HoveredEntry)
 {
     CancelHideMenuTimer();
   
