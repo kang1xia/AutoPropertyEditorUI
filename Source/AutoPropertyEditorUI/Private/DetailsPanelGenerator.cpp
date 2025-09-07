@@ -102,9 +102,9 @@ void UDetailsPanelGenerator::GeneratePanel(UObject* TargetObject, FName StructPr
 
 void UDetailsPanelGenerator::GenerateDataFromReflection()
 {
-    AllPropertyData.Empty();
+    EveryNumericPropertyDatas.Empty();
     FilterCategoryData.Empty();
-    AllFilterChildItems.Empty();
+    EveryBoolPropertyDatas.Empty();
     FilterCategoryMap.Empty();
 
     if (!WatchedRootProperty) return;
@@ -120,7 +120,7 @@ void UDetailsPanelGenerator::GenerateDataFromReflection()
         if (FilterCategoryNode && FilterCategoryNode->Children.Num() > 0)
         {
             // 将这个分类下的所有子项一次性地追加到扁平化列表中
-            AllFilterChildItems.Append(FilterCategoryNode->Children);
+            EveryBoolPropertyDatas.Append(FilterCategoryNode->Children);
         }
     }
 }
@@ -145,15 +145,16 @@ void UDetailsPanelGenerator::ParseStruct_Recursive(UStruct* InStructDef, void* I
         else if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
         {
             CreateNumericNode(NumericProperty, InStructData);
+            CreateFilterCategoryNode(NumericProperty->GetFName());
         }
     }
 }
 
-void UDetailsPanelGenerator::CreateNumericNode(FNumericProperty* NumericProperty, void* ParentStructData)
+UNumericPropertyData* UDetailsPanelGenerator::CreateNumericNode(FNumericProperty* NumericProperty, void* ParentStructData)
 {
     // ...创建对应的Number
     FPropertyUIMetadata* RowData = UIDataTable->FindRow<FPropertyUIMetadata>(NumericProperty->GetFName(), "");
-    if (!RowData) return;
+    if (!RowData) return nullptr;
 
     UNumericPropertyData* PropData = NewObject<UNumericPropertyData>(this);
     PropData->DisplayName = RowData->DisplayName;
@@ -169,24 +170,23 @@ void UDetailsPanelGenerator::CreateNumericNode(FNumericProperty* NumericProperty
     PropData->CurrentValue = ClampedInitialValue;
 
     PropData->OnValueUpdated.AddDynamic(this, &UDetailsPanelGenerator::HandleSingleValueUpdated);
-    AllPropertyData.Add(PropData);
+    EveryNumericPropertyDatas.Add(PropData);
 
-    // 创建对应的筛选器
-    CreateFilterNode(NumericProperty->GetFName());
+    return PropData;
 }
 
-void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
+UFilterCategoryData* UDetailsPanelGenerator::CreateFilterCategoryNode(FName ParentName)
 {
-    if (!WatchedRootProperty) return;
+    if (!WatchedRootProperty) return nullptr;
 
     UStruct* RootStructDef = WatchedRootProperty->Struct;
-    if (!RootStructDef) return;
+    if (!RootStructDef) return nullptr;
 
     auto ParentProperty = RootStructDef->FindPropertyByName(ParentName);
-    if (!ParentProperty) return;
+    if (!ParentProperty) return nullptr;
 
     FPropertyUIMetadata* RowData = UIDataTable->FindRow<FPropertyUIMetadata>(ParentName, "");
-    if (!RowData) return;
+    if (!RowData) return nullptr;
 
     FText DisplayName = RowData->DisplayName;
     FName CategoryString = *(RowData->Category);
@@ -206,28 +206,31 @@ void UDetailsPanelGenerator::CreateFilterNode(FName ParentName)
     }
 
     auto InStructData = WatchedRootProperty->ContainerPtrToValuePtr<void>(WatchedObject);
-    UBoolPropertyData* FilterNode = NewObject<UBoolPropertyData>(this);
-    FilterNode->DisplayName = DisplayName;
-    FilterNode->ParentStructData = InStructData;
-    FilterNode->FilterPropertyName = ParentName;
+    UBoolPropertyData* BoolPropertyNode = NewObject<UBoolPropertyData>(this);
+    BoolPropertyNode->DisplayName = RowData->DisplayName;
+    BoolPropertyNode->ParentStructData = InStructData;
+    BoolPropertyNode->FilterPropertyName = ParentName;
 
     const FString OverrideBoolName = FString::Printf(TEXT("bOverride_%s"), *(ParentName.ToString()));
     FBoolProperty* BoolProperty = FindFProperty<FBoolProperty>(RootStructDef, *OverrideBoolName);
     if (BoolProperty)
     {
-        FilterNode->bHasOverrideSwitch = true;
-        FilterNode->TargetProperty = BoolProperty;
-        FilterNode->bIsChecked = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(InStructData));
+        BoolPropertyNode->bHasOverrideSwitch = true;
+        BoolPropertyNode->TargetProperty = BoolProperty;
+        BoolPropertyNode->bIsChecked = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(InStructData));
     }
     else
     {
-        FilterNode->bHasOverrideSwitch = false;
-        FilterNode->TargetProperty = nullptr;
-        FilterNode->bIsChecked = false;
+        BoolPropertyNode->bHasOverrideSwitch = false;
+        BoolPropertyNode->TargetProperty = nullptr;
+        BoolPropertyNode->bIsChecked = false;
     }
 
-    FilterNode->OnBoolPropertyStateChanged.AddDynamic(this, &UDetailsPanelGenerator::OnFilterChanged);
-    FilterCategoryNode->Children.Add(FilterNode);
+    BoolPropertyNode->OnBoolPropertyStateChanged.AddDynamic(this, &UDetailsPanelGenerator::OnFilterChanged);
+
+    FilterCategoryNode->Children.Add(BoolPropertyNode);
+
+    return FilterCategoryNode;
 }
 
 void UDetailsPanelGenerator::RefreshListView()
@@ -245,7 +248,7 @@ void UDetailsPanelGenerator::RefreshListView()
         }
     }
 
-    for (UNumericPropertyData* PropData : AllPropertyData)
+    for (UNumericPropertyData* PropData : EveryNumericPropertyDatas)
     {
         if (!PropData || !PropData->TargetProperty) continue;
 
@@ -318,7 +321,7 @@ void UDetailsPanelGenerator::ResetAllToDefaults()
 {
     bool bAtLeastOneValueChanged = false;
 
-    for (UNumericPropertyData* PropData : AllPropertyData)
+    for (UNumericPropertyData* PropData : EveryNumericPropertyDatas)
     {
         if (PropData && PropData->TargetProperty)
         {
@@ -397,12 +400,12 @@ void UDetailsPanelGenerator::RefreshEveryCategoryState()
 
 void UDetailsPanelGenerator::RefreshSubFilterList()
 {
-    VisibleCheckBoxEntries.Empty();
+    VisibleBoolPropertyEntries.Empty();
     for (auto ChildWidget : SubFilterListView->GetDisplayedEntryWidgets())
     {
         if (UBoolPropertyEntry* Entry = Cast<UBoolPropertyEntry>(ChildWidget))
         {
-            VisibleCheckBoxEntries.Add(Entry);
+            VisibleBoolPropertyEntries.Add(Entry);
             Entry->RefreshState(Entry->GetListItem());
         }
     }
@@ -469,7 +472,7 @@ void UDetailsPanelGenerator::ResetPropertyToDefault(UBoolPropertyData* NodeDataT
         return;
     }
 
-    for (UNumericPropertyData* PropData : AllPropertyData)
+    for (UNumericPropertyData* PropData : EveryNumericPropertyDatas)
     {
         if (PropData && PropData->TargetProperty)
         {
@@ -498,7 +501,7 @@ void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
     WS_ToggleSearch->SetActiveWidgetIndex(1);
 
     TArray<UBoolPropertyData*> FoundItems;
-    for (UBoolPropertyData* Item : AllFilterChildItems)
+    for (UBoolPropertyData* Item : EveryBoolPropertyDatas)
     {
         if (Item && Item->DisplayName.ToString().Contains(SearchString))
         {
@@ -595,7 +598,7 @@ void UDetailsPanelGenerator::HandleFilterCategoryDataToggled(UFilterCategoryData
     }
 
     RefreshSubFilterList();
-    for (UBoolPropertyEntry* VisibleEntry : VisibleCheckBoxEntries)
+    for (UBoolPropertyEntry* VisibleEntry : VisibleBoolPropertyEntries)
     {
         if (VisibleEntry)
         {
@@ -628,10 +631,10 @@ void UDetailsPanelGenerator::ExecuteHideMenu()
     // 实际执行隐藏的函数
     SubFilterPopup->SetVisibility(ESlateVisibility::Collapsed);
 
-    if (ActiveCategoryEntry.IsValid())
+    if (ActiveFilterCategoryEntry.IsValid())
     {
-        ActiveCategoryEntry.Get()->SetHighlight(false);
-        ActiveCategoryEntry.Reset();
+        ActiveFilterCategoryEntry.Get()->SetHighlight(false);
+        ActiveFilterCategoryEntry.Reset();
     }
 }
 
@@ -726,14 +729,14 @@ void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterCategoryData* CategoryData
     SubFilterPopup->SetVisibility(ESlateVisibility::Visible);
 
     // (处理高亮的逻辑保持不变)
-    if (ActiveCategoryEntry.IsValid())
+    if (ActiveFilterCategoryEntry.IsValid())
     {
-        ActiveCategoryEntry.Get()->SetHighlight(false);
+        ActiveFilterCategoryEntry.Get()->SetHighlight(false);
     }
-    ActiveCategoryEntry = TWeakObjectPtr<UFilterCategoryEntry>(Cast<UFilterCategoryEntry>(HoveredEntry));
-    if (ActiveCategoryEntry.IsValid())
+    ActiveFilterCategoryEntry = TWeakObjectPtr<UFilterCategoryEntry>(Cast<UFilterCategoryEntry>(HoveredEntry));
+    if (ActiveFilterCategoryEntry.IsValid())
     {
-        ActiveCategoryEntry.Get()->SetHighlight(true);
+        ActiveFilterCategoryEntry.Get()->SetHighlight(true);
     }
 
     RefreshSubFilterList();

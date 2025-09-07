@@ -86,23 +86,34 @@ protected:
 
     virtual void GenerateDataFromReflection();
     virtual void ParseStruct_Recursive(UStruct* InStructDef, void* InStructData, int32 RecursionDepth);
-    virtual void CreateNumericNode(FNumericProperty* NumericProperty, void* ParentStructData);
-    virtual void CreateFilterNode(FName ParentName);
+    virtual UNumericPropertyData* CreateNumericNode(FNumericProperty* NumericProperty, void* ParentStructData);
+
+    // 会创建一个类别和一个筛选器（BOOL）
+    virtual UFilterCategoryData* CreateFilterCategoryNode(FName ParentName);
 
 private:
+    // 观测对象
     UPROPERTY() TObjectPtr<UObject> WatchedObject;
-    FName RootPropertyName;
+
+    // 被观测对象中的那个属性名称
+    UPROPERTY() FName RootPropertyName;
+
+    // 这个属性对应的结构体对象
     FStructProperty* WatchedRootProperty = nullptr;
-    UPROPERTY(Transient) TWeakObjectPtr<class UFilterCategoryEntry> ActiveCategoryEntry;
-    UPROPERTY(Transient) TArray<TObjectPtr<class UBoolPropertyEntry>> VisibleCheckBoxEntries;
 
-    // 保存所有可能生成的属性数据
-    UPROPERTY() TArray<TObjectPtr<UNumericPropertyData>> AllPropertyData;
+    // 当前观察的种类Entry
+    UPROPERTY(Transient) TWeakObjectPtr<class UFilterCategoryEntry> ActiveFilterCategoryEntry;
 
-    // 所有种类下的子项
-    TArray<TObjectPtr<UBoolPropertyData>> AllFilterChildItems;
+    // 当前被展示的Bool类型的Entry（过滤器）
+    UPROPERTY(Transient) TArray<TObjectPtr<class UBoolPropertyEntry>> VisibleBoolPropertyEntries;
 
-    // 筛选器种类
+    // 所有Numeric类型的数据
+    UPROPERTY() TArray<TObjectPtr<UNumericPropertyData>> EveryNumericPropertyDatas;
+
+    // 所有Bool类型的数据（扮演过滤器）
+    TArray<TObjectPtr<UBoolPropertyData>> EveryBoolPropertyDatas;
+
+    // 所有种类数据
     TArray<TObjectPtr<UFilterCategoryData>> FilterCategoryData;
     TMap<FName, UFilterCategoryData*> FilterCategoryMap;
 
@@ -116,7 +127,7 @@ private:
 
     /**
     * ********************************************************************************
-    * ** 过滤器
+    * ** Bool类型,过滤器
     * ********************************************************************************
     */
     UFUNCTION()
