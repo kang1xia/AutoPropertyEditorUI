@@ -42,13 +42,13 @@ protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UListView> MainListView;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(meta = (BindWidget)) 
     TObjectPtr<UListView> CategoryListView;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(meta = (BindWidget)) 
     TObjectPtr<class UBorder> SubFilterPopup;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(meta = (BindWidget)) 
     TObjectPtr<UListView> SubFilterListView;
 
     UPROPERTY(meta = (BindWidget))

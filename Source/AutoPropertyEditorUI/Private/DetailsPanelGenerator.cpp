@@ -659,7 +659,7 @@ void UDetailsPanelGenerator::OnFilterChanged(UBoolPropertyData* NodeData, bool b
 void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterCategoryData* CategoryData, UUserWidget* HoveredEntry)
 {
     CancelHideMenuTimer();
-
+  
     if (!CategoryData || CategoryData->Children.Num() == 0 || !HoveredEntry)
     {
         SubFilterPopup->SetVisibility(ESlateVisibility::Collapsed);
