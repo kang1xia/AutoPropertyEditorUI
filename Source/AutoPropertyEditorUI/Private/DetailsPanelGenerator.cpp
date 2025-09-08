@@ -25,7 +25,10 @@ void UDetailsPanelGenerator::NativePreConstruct()
 {
     Super::NativePreConstruct();
 
-    TB_Title->SetText(Title);
+    if (TB_Title)
+    {
+        TB_Title->SetText(Title);
+    }
 }
 
 void UDetailsPanelGenerator::NativeOnInitialized()
@@ -145,7 +148,7 @@ void UDetailsPanelGenerator::ParseStruct_Recursive(UStruct* InStructDef, void* I
         else if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
         {
             CreateNumericNode(NumericProperty, InStructData);
-            CreateFilterCategoryNode(NumericProperty->GetFName());
+            CreateFilterCategoryNode(InStructDef, InStructData, NumericProperty->GetFName());
         }
     }
 }
@@ -175,15 +178,9 @@ UNumericPropertyData* UDetailsPanelGenerator::CreateNumericNode(FNumericProperty
     return PropData;
 }
 
-UFilterCategoryData* UDetailsPanelGenerator::CreateFilterCategoryNode(FName ParentName)
+UFilterCategoryData* UDetailsPanelGenerator::CreateFilterCategoryNode(UStruct* ParentStruct, void* ParentStructData, FName ParentName)
 {
-    if (!WatchedRootProperty) return nullptr;
-
-    UStruct* RootStructDef = WatchedRootProperty->Struct;
-    if (!RootStructDef) return nullptr;
-
-    auto ParentProperty = RootStructDef->FindPropertyByName(ParentName);
-    if (!ParentProperty) return nullptr;
+    if (!ParentStruct || !ParentStructData) return nullptr;
 
     FPropertyUIMetadata* RowData = UIDataTable->FindRow<FPropertyUIMetadata>(ParentName, "");
     if (!RowData) return nullptr;
@@ -205,19 +202,18 @@ UFilterCategoryData* UDetailsPanelGenerator::CreateFilterCategoryNode(FName Pare
         FilterCategoryData.Add(FilterCategoryNode);
     }
 
-    auto InStructData = WatchedRootProperty->ContainerPtrToValuePtr<void>(WatchedObject);
     UBoolPropertyData* BoolPropertyNode = NewObject<UBoolPropertyData>(this);
     BoolPropertyNode->DisplayName = RowData->DisplayName;
-    BoolPropertyNode->ParentStructData = InStructData;
+    BoolPropertyNode->ParentStructData = ParentStructData;
     BoolPropertyNode->FilterPropertyName = ParentName;
 
     const FString OverrideBoolName = FString::Printf(TEXT("bOverride_%s"), *(ParentName.ToString()));
-    FBoolProperty* BoolProperty = FindFProperty<FBoolProperty>(RootStructDef, *OverrideBoolName);
+    FBoolProperty* BoolProperty = FindFProperty<FBoolProperty>(ParentStruct, *OverrideBoolName);
     if (BoolProperty)
     {
         BoolPropertyNode->bHasOverrideSwitch = true;
         BoolPropertyNode->TargetProperty = BoolProperty;
-        BoolPropertyNode->bIsChecked = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(InStructData));
+        BoolPropertyNode->bIsChecked = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(ParentStructData));
     }
     else
     {
@@ -654,13 +650,16 @@ void UDetailsPanelGenerator::OnFilterChanged(UBoolPropertyData* NodeData, bool b
         RefreshEveryCategoryState();
     }
 
-    OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
+    if (NodeData->bHasOverrideSwitch || !bNewState)
+    {
+        OnRootPropertyChanged.Broadcast(WatchedObject, RootPropertyName);
+    }
 }
 
 void UDetailsPanelGenerator::ShowSubFilterMenu(UFilterCategoryData* CategoryData, UUserWidget* HoveredEntry)
 {
     CancelHideMenuTimer();
-  
+
     if (!CategoryData || CategoryData->Children.Num() == 0 || !HoveredEntry)
     {
         SubFilterPopup->SetVisibility(ESlateVisibility::Collapsed);

@@ -42,13 +42,13 @@ protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UListView> MainListView;
 
-    UPROPERTY(meta = (BindWidget)) 
+    UPROPERTY(meta = (BindWidget))
     TObjectPtr<UListView> CategoryListView;
 
-    UPROPERTY(meta = (BindWidget)) 
+    UPROPERTY(meta = (BindWidget))
     TObjectPtr<class UBorder> SubFilterPopup;
 
-    UPROPERTY(meta = (BindWidget)) 
+    UPROPERTY(meta = (BindWidget))
     TObjectPtr<UListView> SubFilterListView;
 
     UPROPERTY(meta = (BindWidget))
@@ -89,7 +89,7 @@ protected:
     virtual UNumericPropertyData* CreateNumericNode(FNumericProperty* NumericProperty, void* ParentStructData);
 
     // 会创建一个类别和一个筛选器（BOOL）
-    virtual UFilterCategoryData* CreateFilterCategoryNode(FName ParentName);
+    virtual UFilterCategoryData* CreateFilterCategoryNode(UStruct* ParentStruct, void* ParentStructData, FName ParentName);
 
 private:
     // 观测对象
