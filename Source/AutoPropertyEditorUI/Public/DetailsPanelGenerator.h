@@ -15,6 +15,7 @@ class USizeBox;
 class UBorder;
 class UWidgetSwitcher;
 class UDataTable;
+class UTexture2D;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRootPropertyChanged, UObject*, TargetObject, FName, RootPropertyName);
 
@@ -22,8 +23,6 @@ UCLASS()
 class AUTOPROPERTYEDITORUI_API UDetailsPanelGenerator : public UUserWidget
 {
     GENERATED_BODY()
-
-    friend class FMenuInputProcessor;
 
 public:
     UPROPERTY(BlueprintAssignable, Category = "Details Panel | Events")
@@ -38,6 +37,12 @@ public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Details Panel")
     FText Title;
 
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Details Panel")
+    TObjectPtr<UTexture2D> SingleChoiceTexture;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Details Panel")
+    TObjectPtr<UTexture2D> MultiChoiceTexture;
+
 protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UListView> MainListView;
@@ -46,7 +51,7 @@ protected:
     TObjectPtr<UListView> CategoryListView;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<class UBorder> SubFilterPopup;
+    TObjectPtr<UBorder> SubFilterPopup;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UListView> SubFilterListView;
@@ -76,6 +81,9 @@ protected:
     TObjectPtr<UButton> BT_Clear;
 
     UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> BT_FilterChoiceMode;
+
+    UPROPERTY(meta = (BindWidget))
     TObjectPtr<UWidget> CategoryListContainer;
 
     virtual void NativePreConstruct() override;
@@ -91,7 +99,7 @@ protected:
     // 会创建一个类别和一个筛选器（BOOL）
     virtual UFilterCategoryData* CreateFilterCategoryNode(UStruct* ParentStruct, void* ParentStructData, FName ParentName);
 
-private:
+protected:
     // 观测对象
     UPROPERTY() TObjectPtr<UObject> WatchedObject;
 
@@ -183,11 +191,20 @@ private:
     UFUNCTION()
     void ResetPropertyToDefault(UBoolPropertyData* NodeDataToReset);
 
-    // 用于处理悬浮延迟的计时器句柄
+    /**
+    * ********************************************************************************
+    * ** 筛选框，单/多选
+    * ********************************************************************************
+    */
+    UFUNCTION()
+    void ToggleFilterSelectionMode();
+    void UpdateFilterChoiceModeStyle();
+
     FTimerHandle HideMenuTimer;
     FGeometry CachedGeometry;
     bool bIsFilterPanelOpen = false;
     bool bIsSearchResultsOpen = false;
     TObjectPtr<UDataTable> UIDataTable;
     int32 MaxRecursionDepth = 1;
+    bool bIsSingleFilterSelectionMode = false;
 };

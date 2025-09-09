@@ -35,4 +35,5 @@ public:
 
     // C++函数，用于更新真实数据
     void UpdateSourceDataAndBroadcast(bool bNewValue);
+    void UpdateSourceData(bool bNewValue);
 };

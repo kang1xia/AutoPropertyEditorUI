@@ -2,6 +2,12 @@
 
 void UBoolPropertyData::UpdateSourceDataAndBroadcast(bool bNewValue)
 {
+    UpdateSourceData(bNewValue);
+    OnBoolPropertyStateChanged.Broadcast(this, bIsChecked);
+}
+
+void UBoolPropertyData::UpdateSourceData(bool bNewValue)
+{
     if (bIsChecked == bNewValue)
     {
         return;
@@ -16,6 +22,4 @@ void UBoolPropertyData::UpdateSourceDataAndBroadcast(bool bNewValue)
 
     // 更新我们自己的数据对象
     bIsChecked = bNewValue;
-
-    OnBoolPropertyStateChanged.Broadcast(this, bIsChecked);
 }

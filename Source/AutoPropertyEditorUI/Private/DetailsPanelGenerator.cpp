@@ -20,6 +20,8 @@
 #include "Framework/Application/IInputProcessor.h"
 #include "../Data/PropertyUIData.h"
 #include "Kismet/KismetStringLibrary.h"
+#include "Styling/SlateStyle.h"
+#include "Engine/Texture2D.h"
 
 void UDetailsPanelGenerator::NativePreConstruct()
 {
@@ -50,6 +52,10 @@ void UDetailsPanelGenerator::NativeOnInitialized()
     if (BT_Clear)
     {
         BT_Clear->OnClicked.AddDynamic(this, &UDetailsPanelGenerator::OnClearSearchClicked);
+    }
+    if (BT_FilterChoiceMode)
+    {
+        BT_FilterChoiceMode->OnClicked.AddDynamic(this, &UDetailsPanelGenerator::ToggleFilterSelectionMode);
     }
 
     BT_Filter->OnClicked.AddDynamic(this, &ThisClass::ToggleShowCategory);
@@ -482,6 +488,50 @@ void UDetailsPanelGenerator::ResetPropertyToDefault(UBoolPropertyData* NodeDataT
     }
 }
 
+void UDetailsPanelGenerator::ToggleFilterSelectionMode()
+{
+    bIsSingleFilterSelectionMode = !bIsSingleFilterSelectionMode;
+
+    // 如果切换到单选模式，我们需要确保当前只有一个被选中
+    if (bIsSingleFilterSelectionMode)
+    {
+        UBoolPropertyData* FirstSelectedItem = nullptr;
+        // 遍历所有筛选器
+        for (UBoolPropertyData* NodeData : EveryBoolPropertyDatas)
+        {
+            if (NodeData && NodeData->bIsChecked)
+            {
+                if (FirstSelectedItem == nullptr)
+                {
+                    FirstSelectedItem = NodeData; // 找到第一个被选中的
+                }
+                else
+                {
+                    // 如果已经有了一个被选中的，就把这个设为未选中
+                    NodeData->UpdateSourceDataAndBroadcast(false);
+                }
+            }
+        }
+
+        RefreshListView();
+        RefreshEveryCategoryState();
+        RefreshSubFilterList();
+    }
+
+    UpdateFilterChoiceModeStyle();
+}
+
+void UDetailsPanelGenerator::UpdateFilterChoiceModeStyle()
+{
+    if (!SingleChoiceTexture || !MultiChoiceTexture) return;
+
+    FButtonStyle Style = BT_FilterChoiceMode->GetStyle();
+    Style.Normal.SetResourceObject(bIsSingleFilterSelectionMode ? SingleChoiceTexture : MultiChoiceTexture);
+    Style.Hovered.SetResourceObject(bIsSingleFilterSelectionMode ? SingleChoiceTexture : MultiChoiceTexture);
+    Style.Pressed.SetResourceObject(bIsSingleFilterSelectionMode ? SingleChoiceTexture : MultiChoiceTexture);
+    BT_FilterChoiceMode->SetStyle(Style);
+}
+
 void UDetailsPanelGenerator::OnSearchTextChanged(const FText& Text)
 {
     const FString& SearchString = Text.ToString();
@@ -636,6 +686,28 @@ void UDetailsPanelGenerator::ExecuteHideMenu()
 
 void UDetailsPanelGenerator::OnFilterChanged(UBoolPropertyData* NodeData, bool bNewState)
 {
+    if (bIsSingleFilterSelectionMode && bNewState)
+    {   
+        bool bUpdate = false;
+        for (UBoolPropertyData* OtherNodeData : EveryBoolPropertyDatas)
+        {
+            if (OtherNodeData && OtherNodeData != NodeData)
+            {
+                if (OtherNodeData->bIsChecked)
+                {
+                    bUpdate = true;
+                    OtherNodeData->UpdateSourceData(false); 
+                    ResetPropertyToDefault(OtherNodeData);
+                }
+            }
+        }
+
+        if (bUpdate)
+        {
+            RefreshSubFilterList();
+        }
+    }
+
     if (!bNewState)
     {
         ResetPropertyToDefault(NodeData);
